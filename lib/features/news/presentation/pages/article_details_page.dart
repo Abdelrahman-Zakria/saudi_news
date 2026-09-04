@@ -129,11 +129,29 @@ class ArticleDetailsPage extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        const Icon(Icons.calendar_today_outlined, size: 14, color: Color(0xFF9CA3AF)),
-                        const SizedBox(width: 6),
-                        Text(
-                          intl.DateFormat('d MMMM yyyy', 'ar').format(article.createdAt),
-                          style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF1F2937) : const Color(0xFFF3F4F6),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isDark ? const Color(0xFF374151) : const Color(0xFFE5E7EB),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.access_time, size: 14, color: Color(0xFF9CA3AF)),
+                              const SizedBox(width: 6),
+                              Text(
+                                intl.DateFormat('d MMMM yyyy - hh:mm a', 'ar').format(article.createdAt),
+                                style: TextStyle(
+                                  color: isDark ? const Color(0xFFD1D5DB) : const Color(0xFF4B5563),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
