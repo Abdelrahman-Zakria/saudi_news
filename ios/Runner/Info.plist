@@ -87,6 +87,10 @@
 	<string>هذا المعرف سيستخدم لتقديم إعلانات مخصصة لك.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>نحتاج للوصول إلى موقعك لتحسين تجربة المستخدم وتقديم محتوى محلي.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>نحتاج للوصول إلى موقعك لتحسين تجربة المستخدم وتقديم محتوى محلي حتى في الخلفية.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>نحتاج للوصول إلى موقعك لتحسين تجربة المستخدم وتقديم محتوى محلي في جميع الأوقات.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>نحتاج للوصول إلى الميكروفون لتشغيل المنبهات والتنبيهات الصوتية.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
