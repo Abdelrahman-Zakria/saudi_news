@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:saudi_news/features/news/presentation/pages/technology_news_screen.dart';
 import 'package:saudi_news/features/prayer/presentation/pages/prayer_screen.dart';
 import 'favorites_screen.dart';
 import 'notifications_screen.dart';
 import 'settings_screen.dart';
 
 class MoreMenuScreen extends StatelessWidget {
-  final Function(bool)? onThemeChanged;
-  final bool isDarkMode;
+  final Function(int)? onTabChange;
 
   const MoreMenuScreen({
     super.key,
-    this.onThemeChanged,
-    this.isDarkMode = false,
+    this.onTabChange,
   });
 
   @override
@@ -25,7 +24,10 @@ class MoreMenuScreen extends StatelessWidget {
         'icon': '💻',
         'description': 'أحدث أخبار التقنية والأجهزة',
         'onTap': () {
-          // Navigate to Tech News
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const TechnologyNewsScreen()),
+          );
         },
       },
       {
@@ -33,7 +35,9 @@ class MoreMenuScreen extends StatelessWidget {
         'icon': '📞',
         'description': 'البحث عن الأرقام والجهات',
         'onTap': () {
-          // Navigate to Directory
+          if (onTabChange != null) {
+            onTabChange!(3); // 3 is the index for Phone Directory in AppBottomNav
+          }
         },
       },
       {
@@ -77,10 +81,7 @@ class MoreMenuScreen extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => SettingsScreen(
-                onThemeChanged: onThemeChanged,
-                isDarkMode: isDarkMode,
-              ),
+              builder: (context) => const SettingsScreen(),
             ),
           );
         },

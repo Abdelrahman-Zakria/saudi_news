@@ -1,115 +1,140 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../cubit/settings_cubit.dart';
 
-class SettingsScreen extends StatefulWidget {
-  final Function(bool)? onThemeChanged;
-  final bool isDarkMode;
-
-  const SettingsScreen({
-    super.key,
-    this.onThemeChanged,
-    this.isDarkMode = false,
-  });
-
-  @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
-}
-
-class _SettingsScreenState extends State<SettingsScreen> {
-  bool _breakingNews = true;
-  bool _sportsNews = false;
-  bool _jobsNews = true;
-  String _selectedLanguage = 'العربية';
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('الإعدادات', style: TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+    return BlocBuilder<SettingsCubit, SettingsState>(
+      builder: (context, state) {
+        final isDark = state.isDarkMode;
+
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: Scaffold(
+            appBar: AppBar(
+              title: const Text('الإعدادات', style: TextStyle(fontWeight: FontWeight.bold)),
+              centerTitle: true,
+            ),
+            body: SafeArea(
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  _buildProfileCard(isDark),
+                  const SizedBox(height: 24),
+                  _buildSectionHeader(context, 'المظهر'),
+                  _buildSettingTile(
+                    context,
+                    title: 'الوضع الليلي',
+                    subtitle: 'تغيير سمة التطبيق',
+                    trailing: Switch.adaptive(
+                      value: isDark,
+                      onChanged: (value) => context.read<SettingsCubit>().toggleTheme(value),
+                      activeTrackColor: theme.colorScheme.primary,
+                    ),
+                    icon: Icons.dark_mode_outlined,
+                  ),
+                  const SizedBox(height: 24),
+                  _buildSectionHeader(context, 'الإشعارات'),
+                  _buildSettingTile(
+                    context,
+                    title: 'أخبار عاجلة',
+                    trailing: Switch.adaptive(
+                      value: state.breakingNewsEnabled,
+                      onChanged: (value) => context.read<SettingsCubit>().setBreakingNews(value),
+                      activeTrackColor: theme.colorScheme.primary,
+                    ),
+                    icon: Icons.flash_on_outlined,
+                  ),
+                  _buildSettingTile(
+                    context,
+                    title: 'أخبار الرياضة',
+                    trailing: Switch.adaptive(
+                      value: state.sportsNewsEnabled,
+                      onChanged: (value) => context.read<SettingsCubit>().setSportsNews(value),
+                      activeTrackColor: theme.colorScheme.primary,
+                    ),
+                    icon: Icons.sports_soccer_outlined,
+                  ),
+                  _buildSettingTile(
+                    context,
+                    title: 'تنبيهات الوظائف',
+                    trailing: Switch.adaptive(
+                      value: state.jobsNewsEnabled,
+                      onChanged: (value) => context.read<SettingsCubit>().setJobsNews(value),
+                      activeTrackColor: theme.colorScheme.primary,
+                    ),
+                    icon: Icons.work_outline,
+                  ),
+                  const SizedBox(height: 24),
+                  _buildSectionHeader(context, 'عام'),
+                  _buildSettingTile(
+                    context,
+                    title: 'اللغة',
+                    subtitle: state.language,
+                    icon: Icons.language,
+                    onTap: () => _showLanguagePicker(context, state.language),
+                  ),
+                  _buildSettingTile(
+                    context,
+                    title: 'الموقع',
+                    subtitle: 'الرياض، المملكة العربية السعودية',
+                    icon: Icons.location_on_outlined,
+                    onTap: () {},
+                  ),
+                  const SizedBox(height: 32),
+                  TextButton(
+                    onPressed: () {},
+                    child: const Text(
+                      'تسجيل الخروج',
+                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: Text(
+                      'الإصدار 1.0.0',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showLanguagePicker(BuildContext context, String currentLanguage) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            _buildProfileCard(isDark),
-            const SizedBox(height: 24),
-            _buildSectionHeader('المظهر'),
-            _buildSettingTile(
-              title: 'الوضع الليلي',
-              subtitle: 'تغيير سمة التطبيق',
-              trailing: Switch.adaptive(
-                value: widget.onThemeChanged != null ? widget.isDarkMode : isDark,
-                onChanged: (value) {
-                  if (widget.onThemeChanged != null) {
-                    widget.onThemeChanged!(value);
-                  }
-                },
-                activeTrackColor: theme.colorScheme.primary,
-              ),
-              icon: Icons.dark_mode_outlined,
-            ),
-            const SizedBox(height: 24),
-            _buildSectionHeader('الإشعارات'),
-            _buildSettingTile(
-              title: 'أخبار عاجلة',
-              trailing: Switch.adaptive(
-                value: _breakingNews,
-                onChanged: (value) => setState(() => _breakingNews = value),
-                activeTrackColor: theme.colorScheme.primary,
-              ),
-              icon: Icons.flash_on_outlined,
-            ),
-            _buildSettingTile(
-              title: 'أخبار الرياضة',
-              trailing: Switch.adaptive(
-                value: _sportsNews,
-                onChanged: (value) => setState(() => _sportsNews = value),
-                activeTrackColor: theme.colorScheme.primary,
-              ),
-              icon: Icons.sports_soccer_outlined,
-            ),
-            _buildSettingTile(
-              title: 'تنبيهات الوظائف',
-              trailing: Switch.adaptive(
-                value: _jobsNews,
-                onChanged: (value) => setState(() => _jobsNews = value),
-                activeTrackColor: theme.colorScheme.primary,
-              ),
-              icon: Icons.work_outline,
-            ),
-            const SizedBox(height: 24),
-            _buildSectionHeader('عام'),
-            _buildSettingTile(
-              title: 'اللغة',
-              subtitle: _selectedLanguage,
-              icon: Icons.language,
+            const Text('اختر اللغة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            ListTile(
+              title: const Text('العربية'),
+              trailing: currentLanguage == 'العربية' ? const Icon(Icons.check, color: Color(0xFF006C35)) : null,
               onTap: () {
-                // Show language picker
+                context.read<SettingsCubit>().setLanguage('العربية');
+                Navigator.pop(context);
               },
             ),
-            _buildSettingTile(
-              title: 'الموقع',
-              subtitle: 'الرياض، المملكة العربية السعودية',
-              icon: Icons.location_on_outlined,
-              onTap: () {},
-            ),
-            const SizedBox(height: 32),
-            TextButton(
-              onPressed: () {},
-              child: const Text(
-                'تسجيل الخروج',
-                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Center(
-              child: Text(
-                'الإصدار 1.0.0',
-                style: TextStyle(color: Colors.grey[500], fontSize: 12),
-              ),
+            ListTile(
+              title: const Text('English'),
+              trailing: currentLanguage == 'English' ? const Icon(Icons.check, color: Color(0xFF006C35)) : null,
+              onTap: () {
+                context.read<SettingsCubit>().setLanguage('English');
+                Navigator.pop(context);
+              },
             ),
           ],
         ),
@@ -181,7 +206,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(BuildContext context, String title) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8, right: 4),
@@ -196,7 +221,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSettingTile({
+  Widget _buildSettingTile(BuildContext context, {
     required String title,
     String? subtitle,
     Widget? trailing,

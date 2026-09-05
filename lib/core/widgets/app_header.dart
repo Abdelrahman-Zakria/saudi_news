@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class AppHeader extends StatelessWidget {
+class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final bool showBack;
   final VoidCallback? onBack;
@@ -11,6 +11,9 @@ class AppHeader extends StatelessWidget {
     this.showBack = false,
     this.onBack,
   });
+
+  @override
+  Size get preferredSize => const Size.fromHeight(60);
 
   @override
   Widget build(BuildContext context) {
