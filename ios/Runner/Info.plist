@@ -93,6 +93,8 @@
 	<string>نحتاج للوصول إلى موقعك لتحسين تجربة المستخدم وتقديم محتوى محلي في جميع الأوقات.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>نحتاج للوصول إلى الميكروفون لتشغيل المنبهات والتنبيهات الصوتية.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>نحتاج للوصول إلى جهات الاتصال لعرضها في دليل الهاتف والبحث عنها بسهولة.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>SKAdNetworkItems</key>

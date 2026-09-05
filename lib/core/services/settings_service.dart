@@ -28,4 +28,8 @@ class SettingsService {
   // Language
   String get language => _prefs.getString('language') ?? 'العربية';
   Future<void> setLanguage(String value) async => await _prefs.setString('language', value);
+
+  // Contacts Sync
+  bool get contactsSynced => _prefs.getBool('contactsSynced') ?? false;
+  Future<void> setContactsSynced(bool value) async => await _prefs.setBool('contactsSynced', value);
 }

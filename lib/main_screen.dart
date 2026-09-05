@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:saudi_news/features/news/presentation/pages/home_screen.dart';
 import 'package:saudi_news/features/jobs/presentation/pages/jobs_screen.dart';
 import 'package:saudi_news/features/sports/presentation/pages/sports_screen.dart';
+import 'package:saudi_news/features/directory/presentation/pages/directory_screen.dart';
 import 'package:saudi_news/features/settings/presentation/pages/more_menu_screen.dart';
 import 'package:saudi_news/core/widgets/app_bottom_nav.dart';
 import 'package:saudi_news/core/widgets/app_header.dart';
@@ -27,11 +28,11 @@ class _MainScreenState extends State<MainScreen> {
       case 0:
         return "أخبار السعودية";
       case 1:
-        return "الرياضة";
-      case 2:
-        return "الوظائف";
-      case 3:
         return "دليل الهاتف";
+      case 2:
+        return "الرياضة";
+      case 3:
+        return "الوظائف";
       case 4:
         return "المزيد";
       default:
@@ -43,9 +44,9 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     final List<Widget> screens = [
       const HomeScreen(),
+      const DirectoryScreen(),
       const SportsScreen(),
       const JobsScreen(),
-      const Center(child: Text("دليل الهاتف قيد التطوير")),
       MoreMenuScreen(
         onTabChange: _onTabChanged,
       ),

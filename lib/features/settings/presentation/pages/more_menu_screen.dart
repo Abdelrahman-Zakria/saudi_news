@@ -36,7 +36,7 @@ class MoreMenuScreen extends StatelessWidget {
         'description': 'البحث عن الأرقام والجهات',
         'onTap': () {
           if (onTabChange != null) {
-            onTabChange!(3); // 3 is the index for Phone Directory in AppBottomNav
+            onTabChange!(1); // 1 is the index for Phone Directory in MainScreen
           }
         },
       },

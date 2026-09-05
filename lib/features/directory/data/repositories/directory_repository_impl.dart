@@ -1,85 +1,87 @@
-import '../../domain/entities/directory_item.dart';
-import '../../domain/repositories/directory_repository.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
+import '../../domain/entities/directory_contact.dart';
+import '../models/directory_contact_model.dart';
+import '../../../../core/services/settings_service.dart';
 
-class DirectoryRepositoryImpl implements DirectoryRepository {
-  @override
-  Future<List<DirectoryItem>> getDirectoryItems() async {
-    // Simulated delay
-    await Future.delayed(const Duration(milliseconds: 300));
+class DirectoryRepositoryImpl {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final _settingsService = SettingsService();
+
+  Stream<List<DirectoryContact>> getContactsStream({String? query}) {
+    Query firestoreQuery = _firestore.collection('phone_directory');
     
-    return [
-      DirectoryItem(
-        id: 1,
-        name: "مستشفى الملك فيصل التخصصي",
-        category: "مستشفيات",
-        phone: "920012220",
-        city: "الرياض",
-        address: "حي الملك فهد، الرياض",
-        rating: 4.8,
-      ),
-      DirectoryItem(
-        id: 2,
-        name: "وزارة الداخلية",
-        category: "حكومي",
-        phone: "920004444",
-        city: "الرياض",
-        address: "طريق الملك عبدالعزيز، الرياض",
-        rating: 4.2,
-      ),
-      DirectoryItem(
-        id: 3,
-        name: "مطعم البيك",
-        category: "مطاعم",
-        phone: "920002626",
-        city: "جدة",
-        address: "طريق الملك عبدالله، جدة",
-        rating: 4.7,
-      ),
-      DirectoryItem(
-        id: 4,
-        name: "شركة STC للاتصالات",
-        category: "اتصالات",
-        phone: "900",
-        city: "الرياض",
-        address: "طريق الملك فهد، الرياض",
-        rating: 3.9,
-      ),
-      DirectoryItem(
-        id: 5,
-        name: "طيران ناس",
-        category: "طيران",
-        phone: "920002288",
-        city: "جدة",
-        address: "مطار الملك عبدالعزيز، جدة",
-        rating: 4.1,
-      ),
-      DirectoryItem(
-        id: 6,
-        name: "المستشفى السعودي الألماني",
-        category: "مستشفيات",
-        phone: "920001111",
-        city: "جدة",
-        address: "شارع التحلية، جدة",
-        rating: 4.5,
-      ),
-      DirectoryItem(
-        id: 7,
-        name: "هيئة الزكاة والضريبة",
-        category: "حكومي",
-        phone: "19993",
-        city: "الرياض",
-        address: "حي العقيق، الرياض",
-        rating: 4.0,
-      ),
-      DirectoryItem(
-        id: 8,
-        name: "مطعم نايف للمندي",
-        category: "مطاعم",
-        phone: "0112345678",
-        city: "الرياض",
-        address: "حي الملز، الرياض",
-        rating: 4.6,
-      ),
-    ];
+    if (query != null && query.isNotEmpty) {
+      firestoreQuery = firestoreQuery
+          .where('name', isGreaterThanOrEqualTo: query)
+          .where('name', isLessThanOrEqualTo: query + '\uf8ff');
+    }
+
+    return firestoreQuery.limit(100).snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => DirectoryContactModel.fromFirestore(doc)).toList();
+    });
+  }
+
+  Future<void> syncLocalContacts() async {
+    if (_settingsService.contactsSynced) return;
+
+    // Correct permission request for flutter_contacts ^2.3.1
+    // It requires a PermissionType and returns a PermissionStatus
+    final PermissionStatus status = await FlutterContacts.permissions.request(PermissionType.read);
+    final bool permissionGranted = status == PermissionStatus.granted;
+    
+    if (permissionGranted) {
+      // Correct fetching method for flutter_contacts ^2.3.1
+      // Fetching all contacts with phone properties
+      final List<Contact> contacts = await FlutterContacts.getAll(
+        properties: {ContactProperty.phone},
+      );
+      
+      final WriteBatch batch = _firestore.batch();
+      int count = 0;
+
+      for (var contact in contacts) {
+        if (contact.phones.isEmpty) continue;
+
+        for (var phone in contact.phones) {
+          final String normalized = _normalizePhone(phone.number);
+          if (normalized.isEmpty) continue;
+
+          // Correct Firestore method is .doc(), not .document()
+          final DocumentReference docRef = _firestore.collection('phone_directory').doc(normalized);
+          
+          batch.set(docRef, {
+            'name': contact.displayName,
+            'phone': normalized,
+            'category': 'جهة اتصال شخصية',
+            'source': 'user_contacts',
+            'last_sync': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+          
+          count++;
+          // Firestore batches are limited to 500 operations
+          if (count >= 500) {
+            await batch.commit();
+            await _settingsService.setContactsSynced(true);
+            return; 
+          }
+        }
+      }
+      
+      if (count > 0) {
+        await batch.commit();
+        await _settingsService.setContactsSynced(true);
+      }
+    }
+  }
+
+  String _normalizePhone(String phone) {
+    String s = phone.replaceAll(RegExp(r'\D'), '');
+    if (s.startsWith('05')) {
+      s = '966' + s.substring(1);
+    } else if (s.startsWith('5') && s.length == 9) {
+      s = '966' + s;
+    }
+    return s;
   }
 }

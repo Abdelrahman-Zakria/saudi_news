@@ -11,6 +11,7 @@ import 'features/settings/presentation/cubit/settings_cubit.dart';
 import 'features/news/presentation/cubit/news_cubit.dart';
 import 'features/jobs/presentation/cubit/jobs_cubit.dart';
 import 'features/sports/presentation/cubit/sports_cubit.dart';
+import 'features/directory/presentation/cubit/directory_cubit.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +37,7 @@ class MyApp extends StatelessWidget {
         BlocProvider(create: (context) => NewsCubit()..init()),
         BlocProvider(create: (context) => JobsCubit()..init()),
         BlocProvider(create: (context) => SportsCubit()..init()),
+        BlocProvider(create: (context) => DirectoryCubit()),
       ],
       child: BlocBuilder<SettingsCubit, SettingsState>(
         builder: (context, state) {

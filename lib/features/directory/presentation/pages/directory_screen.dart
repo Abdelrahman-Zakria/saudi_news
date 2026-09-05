@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../domain/entities/directory_item.dart';
-import '../../data/repositories/directory_repository_impl.dart';
-import 'directory_detail_screen.dart';
-import 'package:saudi_news/features/news/presentation/widgets/category_pills.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../cubit/directory_cubit.dart';
+import '../cubit/directory_state.dart';
+import '../../domain/entities/directory_contact.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class DirectoryScreen extends StatefulWidget {
   const DirectoryScreen({super.key});
@@ -12,131 +13,94 @@ class DirectoryScreen extends StatefulWidget {
 }
 
 class _DirectoryScreenState extends State<DirectoryScreen> {
-  final _repository = DirectoryRepositoryImpl();
-  String _activeCategory = "all";
-  String _searchQuery = "";
-  List<DirectoryItem> _allItems = [];
-  bool _isLoading = true;
-
-  final List<CategoryItem> _categories = [
-    CategoryItem(id: "all", label: "الكل"),
-    CategoryItem(id: "مستشفيات", label: "🏥 مستشفيات"),
-    CategoryItem(id: "حكومي", label: "🏛 حكومي"),
-    CategoryItem(id: "مطاعم", label: "🍽 مطاعم"),
-    CategoryItem(id: "اتصالات", label: "📡 اتصالات"),
-    CategoryItem(id: "طيران", label: "✈️ طيران"),
-  ];
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadItems();
-  }
-
-  Future<void> _loadItems() async {
-    final items = await _repository.getDirectoryItems();
-    setState(() {
-      _allItems = items;
-      _isLoading = false;
+    // Start sync and initial fetch
+    context.read<DirectoryCubit>().syncUserContacts();
+    context.read<DirectoryCubit>().init();
+    
+    _searchController.addListener(() {
+      context.read<DirectoryCubit>().searchContacts(_searchController.text);
     });
   }
 
-  String _getCategoryIcon(String category) {
-    switch (category) {
-      case "مستشفيات": return "🏥";
-      case "حكومي": return "🏛";
-      case "مطاعم": return "🍽";
-      case "اتصالات": return "📡";
-      case "طيران": return "✈️";
-      default: return "📍";
-    }
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
-
-  final saudiGreen = const Color(0xFF006C35);
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context).copyWith(
-      colorScheme: Theme.of(context).colorScheme.copyWith(primary: saudiGreen),
-    );
-    final isDark = theme.brightness == Brightness.dark;
-
-    final filteredItems = _allItems.where((item) {
-      final matchesCategory = _activeCategory == "all" || item.category == _activeCategory;
-      final matchesSearch = item.name.contains(_searchQuery) || item.city.contains(_searchQuery);
-      return matchesCategory && matchesSearch;
-    }).toList();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text("دليل الهاتف", style: TextStyle(fontWeight: FontWeight.bold)),
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          foregroundColor: isDark ? Colors.white : Colors.black,
-        ),
-        body: SafeArea(
-          child: Column(
-            children: [
-              _buildSearchBar(isDark),
-              CategoryPills(
-                categories: _categories,
-                activeCategoryId: _activeCategory,
-                onCategorySelected: (id) {
-                  setState(() => _activeCategory = id);
-                },
-              ),
-              Expanded(
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : filteredItems.isEmpty
-                        ? const Center(child: Text("لا توجد نتائج"))
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: filteredItems.length,
-                            itemBuilder: (context, index) {
-                              final item = filteredItems[index];
-                              return _buildDirectoryCard(item, theme, isDark);
-                            },
-                          ),
-              ),
-            ],
+      child: Column(
+        children: [
+          _buildSearchBar(isDark),
+          Expanded(
+            child: BlocBuilder<DirectoryCubit, DirectoryState>(
+              builder: (context, state) {
+                if (state is DirectoryLoading) {
+                  return const Center(child: CircularProgressIndicator(color: Color(0xFF006C35)));
+                }
+
+                if (state is DirectoryError) {
+                  return Center(child: Text(state.message));
+                }
+
+                if (state is DirectoryLoaded) {
+                  if (state.contacts.isEmpty) {
+                    return _buildEmptyState();
+                  }
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: state.contacts.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      return _buildContactCard(state.contacts[index], isDark);
+                    },
+                  );
+                }
+
+                return const SizedBox.shrink();
+              },
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 
   Widget _buildSearchBar(bool isDark) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(16.0),
       child: Container(
-        height: 48,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        height: 50,
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1F2937) : const Color(0xFFF9FAFB),
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(
-            color: isDark ? const Color(0xFF374151) : const Color(0xFFE5E7EB),
-          ),
+          color: isDark ? const Color(0xFF1F2937) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isDark ? const Color(0xFF374151) : const Color(0xFFE5E7EB)),
         ),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Row(
           children: [
-            const Icon(Icons.search, color: Color(0xFF9CA3AF), size: 20),
-            const SizedBox(width: 8),
+            const Icon(Icons.search, color: Color(0xFF9CA3AF)),
+            const SizedBox(width: 12),
             Expanded(
               child: TextField(
-                onChanged: (value) => setState(() => _searchQuery = value),
+                controller: _searchController,
                 textAlign: TextAlign.right,
                 decoration: const InputDecoration(
-                  hintText: "ابحث في الدليل...",
-                  hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+                  hintText: "ابحث عن اسم أو رقم...",
                   border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
+                  hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
                 ),
-                style: TextStyle(color: isDark ? Colors.white : const Color(0xFF111827), fontSize: 14),
               ),
             ),
           ],
@@ -145,109 +109,71 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
     );
   }
 
-  Widget _buildDirectoryCard(DirectoryItem item, ThemeData theme, bool isDark) {
+  Widget _buildContactCard(DirectoryContact contact, bool isDark) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? Colors.grey[900] : Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha:0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+        color: isDark ? const Color(0xFF161B22) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? const Color(0xFF30363D) : const Color(0xFFF1F1F1)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFF006C35).withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              contact.name.isNotEmpty ? contact.name[0] : "👤",
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF006C35)),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  contact.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  contact.phone,
+                  style: const TextStyle(color: Color(0xFF6B7280), fontSize: 14),
+                ),
+                if (contact.category != 'عام') ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    contact.category,
+                    style: const TextStyle(color: Color(0xFF006C35), fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.call, color: Color(0xFF006C35)),
+            onPressed: () => launchUrl(Uri.parse('tel:${contact.phone}')),
           ),
         ],
-        border: Border.all(
-          color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
-        ),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(12),
-        leading: Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withValues(alpha:0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Center(
-            child: Text(
-              _getCategoryIcon(item.category),
-              style: const TextStyle(fontSize: 24),
-            ),
-          ),
-        ),
-        title: Text(
-          item.name,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Text("📍", style: TextStyle(fontSize: 10)),
-                const SizedBox(width: 4),
-                Text(item.city, style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF00A651).withValues(alpha:0.1) : const Color(0xFF006C35).withValues(alpha:0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                item.category,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: isDark ? const Color(0xFF00A651) : const Color(0xFF006C35),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text("⭐", style: TextStyle(fontSize: 12)),
-                const SizedBox(width: 4),
-                Text(
-                  item.rating.toString(),
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                    color: isDark ? Colors.white : const Color(0xFF111827),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              "›",
-              style: TextStyle(
-                fontSize: 18,
-                color: isDark ? const Color(0xFF4B5563) : const Color(0xFFD1D5DB),
-              ),
-            ),
-          ],
-        ),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => DirectoryDetailScreen(item: item),
-            ),
-          );
-        },
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text("📞", style: TextStyle(fontSize: 48)),
+          const SizedBox(height: 16),
+          const Text("لم يتم العثور على نتائج", style: TextStyle(color: Color(0xFF9CA3AF))),
+        ],
       ),
     );
   }
