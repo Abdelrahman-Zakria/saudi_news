@@ -13,6 +13,7 @@ class JobsScreen extends StatefulWidget {
 
 class _JobsScreenState extends State<JobsScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   final List<String> _cities = ["الكل", "الرياض", "جدة", "الدمام", "مكة", "المدينة"];
 
@@ -22,11 +23,19 @@ class _JobsScreenState extends State<JobsScreen> {
     _searchController.addListener(() {
       context.read<JobsCubit>().searchJobs(_searchController.text);
     });
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      context.read<JobsCubit>().loadMore();
+    }
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -142,9 +151,16 @@ class _JobsScreenState extends State<JobsScreen> {
       }
 
       return ListView.builder(
+        controller: _scrollController,
         padding: const EdgeInsets.only(top: 8, bottom: 80),
-        itemCount: state.filteredJobs.length,
+        itemCount: state.filteredJobs.length + (state.hasMore ? 1 : 0),
         itemBuilder: (context, index) {
+          if (index == state.filteredJobs.length) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(child: CircularProgressIndicator(color: Color(0xFF006C35))),
+            );
+          }
           return JobCard(job: state.filteredJobs[index]);
         },
       );

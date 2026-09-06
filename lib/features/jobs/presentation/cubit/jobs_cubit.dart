@@ -11,11 +11,18 @@ class JobsCubit extends Cubit<JobsState> {
   JobsCubit() : super(JobsInitial());
 
   void init() {
-    emit(JobsLoading());
+    _startSubscription(limit: 10);
+  }
+
+  void _startSubscription({required int limit}) {
+    if (state is JobsInitial) {
+      emit(JobsLoading());
+    }
+
     _subscription?.cancel();
-    _subscription = _repository.getJobsStream().listen(
+    _subscription = _repository.getJobsStream(limit: limit).listen(
       (jobs) {
-        _updateJobs(jobs);
+        _updateJobs(jobs, limit);
       },
       onError: (error) {
         emit(JobsError(error.toString()));
@@ -23,7 +30,7 @@ class JobsCubit extends Cubit<JobsState> {
     );
   }
 
-  void _updateJobs(List<Job> jobs) {
+  void _updateJobs(List<Job> jobs, int limit) {
     String currentSearch = "";
     String currentCity = "الكل";
     
@@ -39,6 +46,8 @@ class JobsCubit extends Cubit<JobsState> {
       filteredJobs: filtered,
       searchQuery: currentSearch,
       activeCity: currentCity,
+      currentLimit: limit,
+      hasMore: jobs.length >= limit,
     ));
   }
 
@@ -56,23 +65,29 @@ class JobsCubit extends Cubit<JobsState> {
     return filtered;
   }
 
+  void loadMore() {
+    if (state is JobsLoaded) {
+      final s = state as JobsLoaded;
+      if (s.hasMore) {
+        _startSubscription(limit: s.currentLimit + 10);
+      }
+    }
+  }
+
   void searchJobs(String query) {
     if (state is JobsLoaded) {
       final s = state as JobsLoaded;
-      final filtered = _applyFilters(s.allJobs, query.toLowerCase(), s.activeCity);
-      emit(s.copyWith(searchQuery: query, filteredJobs: filtered));
+      _startSubscription(limit: 10);
+      emit(s.copyWith(searchQuery: query));
     }
   }
 
   void changeCity(String city) {
     if (state is JobsLoaded) {
       final s = state as JobsLoaded;
-      
-      // TOGGLE: If same city, go back to "الكل" (All)
       final String nextCity = (s.activeCity == city) ? "الكل" : city;
-      
-      final filtered = _applyFilters(s.allJobs, s.searchQuery, nextCity);
-      emit(s.copyWith(activeCity: nextCity, filteredJobs: filtered));
+      _startSubscription(limit: 10);
+      emit(s.copyWith(activeCity: nextCity));
     }
   }
 

@@ -13,12 +13,16 @@ class SportsLoaded extends SportsState {
   final List<LeagueRow> standings;
   final List<Article> news;
   final int activeTab;
+  final int currentLimit;
+  final bool hasMore;
 
   SportsLoaded({
     required this.matches,
     required this.standings,
     required this.news,
     this.activeTab = 0,
+    this.currentLimit = 10,
+    this.hasMore = true,
   });
 
   SportsLoaded copyWith({
@@ -26,12 +30,16 @@ class SportsLoaded extends SportsState {
     List<LeagueRow>? standings,
     List<Article>? news,
     int? activeTab,
+    int? currentLimit,
+    bool? hasMore,
   }) {
     return SportsLoaded(
       matches: matches ?? this.matches,
       standings: standings ?? this.standings,
       news: news ?? this.news,
       activeTab: activeTab ?? this.activeTab,
+      currentLimit: currentLimit ?? this.currentLimit,
+      hasMore: hasMore ?? this.hasMore,
     );
   }
 }

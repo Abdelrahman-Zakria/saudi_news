@@ -9,6 +9,7 @@ import 'firebase_options.dart';
 import 'core/services/settings_service.dart';
 import 'features/settings/presentation/cubit/settings_cubit.dart';
 import 'features/news/presentation/cubit/news_cubit.dart';
+import 'features/news/presentation/cubit/tech_news_cubit.dart';
 import 'features/jobs/presentation/cubit/jobs_cubit.dart';
 import 'features/sports/presentation/cubit/sports_cubit.dart';
 import 'features/directory/presentation/cubit/directory_cubit.dart';
@@ -35,6 +36,7 @@ class MyApp extends StatelessWidget {
       providers: [
         BlocProvider(create: (context) => SettingsCubit()),
         BlocProvider(create: (context) => NewsCubit()..init()),
+        BlocProvider(create: (context) => TechNewsCubit()..init()),
         BlocProvider(create: (context) => JobsCubit()..init()),
         BlocProvider(create: (context) => SportsCubit()..init()),
         BlocProvider(create: (context) => DirectoryCubit()),

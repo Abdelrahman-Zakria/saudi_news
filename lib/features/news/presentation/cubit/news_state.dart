@@ -12,6 +12,8 @@ class NewsLoaded extends NewsState {
   final List<Article> breakingNews;
   final String activeCategory;
   final String searchQuery;
+  final int currentLimit;
+  final bool hasMore;
 
   NewsLoaded({
     required this.allArticles,
@@ -19,6 +21,8 @@ class NewsLoaded extends NewsState {
     required this.breakingNews,
     this.activeCategory = "all",
     this.searchQuery = "",
+    this.currentLimit = 10,
+    this.hasMore = true,
   });
 
   NewsLoaded copyWith({
@@ -27,6 +31,8 @@ class NewsLoaded extends NewsState {
     List<Article>? breakingNews,
     String? activeCategory,
     String? searchQuery,
+    int? currentLimit,
+    bool? hasMore,
   }) {
     return NewsLoaded(
       allArticles: allArticles ?? this.allArticles,
@@ -34,6 +40,8 @@ class NewsLoaded extends NewsState {
       breakingNews: breakingNews ?? this.breakingNews,
       activeCategory: activeCategory ?? this.activeCategory,
       searchQuery: searchQuery ?? this.searchQuery,
+      currentLimit: currentLimit ?? this.currentLimit,
+      hasMore: hasMore ?? this.hasMore,
     );
   }
 }

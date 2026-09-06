@@ -4,8 +4,33 @@ import '../cubit/sports_cubit.dart';
 import '../cubit/sports_state.dart';
 import 'package:saudi_news/features/news/presentation/widgets/small_news_card.dart';
 
-class SportsScreen extends StatelessWidget {
+class SportsScreen extends StatefulWidget {
   const SportsScreen({super.key});
+
+  @override
+  State<SportsScreen> createState() => _SportsScreenState();
+}
+
+class _SportsScreenState extends State<SportsScreen> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      context.read<SportsCubit>().loadMore();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -105,8 +130,6 @@ class SportsScreen extends StatelessWidget {
   }
 
   Widget _buildMatchesTab(SportsLoaded state) {
-    final isDark = state.matches.isEmpty ? false : true; // Dummy logic for simplicity
-    
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: state.matches.length,
@@ -210,12 +233,7 @@ class SportsScreen extends StatelessWidget {
   Widget _buildStandingsTab(SportsLoaded state) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: state.standings.isEmpty ? Colors.white : (state.standings.first.team == "الهلال" ? (true ? const Color(0xFF161B22) : Colors.white) : Colors.white), // Simplified
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: Builder(
+      child: Builder(
           builder: (context) {
             final isDark = Theme.of(context).brightness == Brightness.dark;
             return Container(
@@ -256,7 +274,6 @@ class SportsScreen extends StatelessWidget {
             );
           }
         ),
-      ),
     );
   }
 
@@ -266,9 +283,16 @@ class SportsScreen extends StatelessWidget {
     }
 
     return ListView.builder(
+      controller: _scrollController,
       padding: const EdgeInsets.all(16),
-      itemCount: state.news.length,
+      itemCount: state.news.length + (state.hasMore ? 1 : 0),
       itemBuilder: (context, index) {
+        if (index == state.news.length) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Center(child: CircularProgressIndicator(color: Color(0xFF006C35))),
+          );
+        }
         return SmallNewsCard(
           article: state.news[index],
           isFavorite: false,

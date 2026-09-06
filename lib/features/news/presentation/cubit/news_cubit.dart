@@ -6,16 +6,26 @@ import '../../domain/entities/article.dart';
 
 class NewsCubit extends Cubit<NewsState> {
   final NewsRepositoryImpl _repository = NewsRepositoryImpl();
+  final String collection;
   StreamSubscription? _subscription;
 
-  NewsCubit() : super(NewsInitial());
+  NewsCubit({this.collection = 'news'}) : super(NewsInitial());
 
   void init() {
-    emit(NewsLoading());
+    _startSubscription(limit: 10);
+  }
+
+  void _startSubscription({required int limit}) {
+    if (state is NewsLoading) return;
+    
+    if (state is NewsInitial) {
+      emit(NewsLoading());
+    }
+
     _subscription?.cancel();
-    _subscription = _repository.getNewsStream().listen(
+    _subscription = _repository.getNewsStream(limit: limit, collection: collection).listen(
       (articles) {
-        _updateArticles(articles);
+        _updateArticles(articles, limit);
       },
       onError: (error) {
         emit(NewsError(error.toString()));
@@ -23,7 +33,7 @@ class NewsCubit extends Cubit<NewsState> {
     );
   }
 
-  void _updateArticles(List<Article> articles) {
+  void _updateArticles(List<Article> articles, int limit) {
     String currentCategory = "all";
     String currentSearch = "";
     
@@ -46,6 +56,8 @@ class NewsCubit extends Cubit<NewsState> {
       breakingNews: breaking,
       activeCategory: currentCategory,
       searchQuery: currentSearch,
+      currentLimit: limit,
+      hasMore: articles.length >= limit,
     ));
   }
 
@@ -55,8 +67,6 @@ class NewsCubit extends Cubit<NewsState> {
     if (category != "all") {
       filtered = filtered.where((a) {
         final artCat = a.category.toLowerCase();
-        // Exact match with English ID OR Exact match with Arabic Label OR contains Arabic Label
-        // This covers "tech" vs "تكنولوجيا" and "ksa" vs "سياسة" etc.
         switch (category) {
           case 'سياسة':
             return artCat == 'politics' || artCat.contains('سياسة') || artCat == 'ksa';
@@ -87,23 +97,29 @@ class NewsCubit extends Cubit<NewsState> {
     return filtered;
   }
 
+  void loadMore() {
+    if (state is NewsLoaded) {
+      final s = state as NewsLoaded;
+      if (s.hasMore) {
+        _startSubscription(limit: s.currentLimit + 10);
+      }
+    }
+  }
+
   void changeCategory(String categoryId) {
     if (state is NewsLoaded) {
       final s = state as NewsLoaded;
-      
-      // TOGGLE: If selecting the same active category, go back to "all"
       final String nextCategory = (s.activeCategory == categoryId) ? "all" : categoryId;
-      
-      final filtered = _applyFilters(s.allArticles, nextCategory, s.searchQuery);
-      emit(s.copyWith(activeCategory: nextCategory, filteredArticles: filtered));
+      _startSubscription(limit: 10); 
+      emit(s.copyWith(activeCategory: nextCategory));
     }
   }
 
   void searchNews(String query) {
     if (state is NewsLoaded) {
       final s = state as NewsLoaded;
-      final filtered = _applyFilters(s.allArticles, s.activeCategory, query.toLowerCase());
-      emit(s.copyWith(searchQuery: query, filteredArticles: filtered));
+      _startSubscription(limit: 10);
+      emit(s.copyWith(searchQuery: query));
     }
   }
 

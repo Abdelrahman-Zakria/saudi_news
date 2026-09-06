@@ -19,6 +19,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   final Set<String> _favorites = {};
 
   final List<CategoryItem> _sections = [
@@ -38,11 +39,19 @@ class _HomeScreenState extends State<HomeScreen> {
     _searchController.addListener(() {
       context.read<NewsCubit>().searchNews(_searchController.text);
     });
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      context.read<NewsCubit>().loadMore();
+    }
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -73,11 +82,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
         if (state is NewsLoaded) {
           final bool isSearching = state.searchQuery.isNotEmpty;
-          final featured = state.allArticles.first;
+          final featured = state.allArticles.isNotEmpty ? state.allArticles.first : null;
 
           return Directionality(
             textDirection: TextDirection.rtl,
             child: ListView(
+              controller: _scrollController,
               padding: EdgeInsets.zero,
               children: [
                 _buildSearchBar(context),
@@ -85,11 +95,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (isSearching)
                   _buildSearchResults(state.filteredArticles, isDark, state.searchQuery)
                 else ...[
-                  // ALWAYS SHOW TOP PART
                   BreakingTicker(articles: state.breakingNews),
-                  _buildFeaturedArticle(featured),
+                  if (featured != null) _buildFeaturedArticle(featured),
                   
-                  // ALWAYS SHOW FILTER CHIPS
                   CategoryPills(
                     categories: _sections,
                     activeCategoryId: state.activeCategory,
@@ -99,6 +107,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
 
                   _buildListContent(state, isDark, theme),
+                  
+                  if (state.hasMore)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Center(child: CircularProgressIndicator(color: Color(0xFF006C35))),
+                    ),
                 ],
                 
                 const SizedBox(height: 80),
@@ -270,7 +284,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Column(
       children: [
-        // Most Read Section (Show only if no category is selected)
         if (state.activeCategory == "all")
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -354,7 +367,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-        // Latest Section
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Column(

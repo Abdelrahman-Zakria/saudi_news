@@ -8,10 +8,11 @@ class NewsRepositoryImpl implements NewsRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
-  Stream<List<Article>> getNewsStream() {
+  Stream<List<Article>> getNewsStream({int limit = 10, String collection = 'news'}) {
     return _firestore
-        .collection('news')
+        .collection(collection)
         .orderBy('timestamp', descending: true)
+        .limit(limit)
         .snapshots()
         .map((snapshot) {
       return snapshot.docs

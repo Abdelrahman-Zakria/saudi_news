@@ -5,10 +5,11 @@ import '../models/job_model.dart';
 class JobRepositoryImpl {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  Stream<List<Job>> getJobsStream() {
+  Stream<List<Job>> getJobsStream({int limit = 10}) {
     return _firestore
         .collection('jobs')
         .orderBy('timestamp', descending: true)
+        .limit(limit)
         .snapshots()
         .map((snapshot) {
       return snapshot.docs.map((doc) => JobModel.fromFirestore(doc)).toList();

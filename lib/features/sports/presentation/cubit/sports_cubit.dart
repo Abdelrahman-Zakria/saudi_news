@@ -12,18 +12,25 @@ class SportsCubit extends Cubit<SportsState> {
   SportsCubit() : super(SportsInitial());
 
   void init() {
-    emit(SportsLoading());
+    _startSubscription(limit: 10);
+  }
+
+  void _startSubscription({required int limit}) {
+    if (state is SportsInitial) {
+      emit(SportsLoading());
+    }
+
     _subscription?.cancel();
-    _subscription = _repository.getSportsUpdatesStream().listen(
+    _subscription = _repository.getSportsUpdatesStream(limit: limit).listen(
       (news) {
-        _updateData(news: news);
+        _updateData(news: news, limit: limit);
       },
       onError: (error) {
         emit(SportsError(error.toString()));
       },
     );
 
-    // Initial dummy data for matches and standings as they are mock for now
+    // Initial dummy data for matches and standings
     _updateData(
       matches: [
         Match(
@@ -62,20 +69,33 @@ class SportsCubit extends Cubit<SportsState> {
     );
   }
 
-  void _updateData({List<Match>? matches, List<LeagueRow>? standings, List<dynamic>? news}) {
+  void _updateData({List<Match>? matches, List<LeagueRow>? standings, List<dynamic>? news, int? limit}) {
     if (state is SportsLoaded) {
       final s = state as SportsLoaded;
       emit(s.copyWith(
         matches: matches,
         standings: standings,
         news: news != null ? List.from(news) : null,
+        currentLimit: limit,
+        hasMore: news != null ? news.length >= (limit ?? 10) : null,
       ));
     } else {
       emit(SportsLoaded(
         matches: matches ?? [],
         standings: standings ?? [],
         news: news != null ? List.from(news) : [],
+        currentLimit: limit ?? 10,
+        hasMore: news != null ? news.length >= (limit ?? 10) : true,
       ));
+    }
+  }
+
+  void loadMore() {
+    if (state is SportsLoaded) {
+      final s = state as SportsLoaded;
+      if (s.hasMore && s.activeTab == 2) { // Only news tab is paginated for now
+        _startSubscription(limit: s.currentLimit + 10);
+      }
     }
   }
 
