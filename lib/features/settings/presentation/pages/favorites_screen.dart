@@ -1,56 +1,82 @@
 import 'package:flutter/material.dart';
-import 'package:saudi_news/features/news/domain/entities/article.dart';
-import 'package:saudi_news/features/news/presentation/widgets/news_card.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../news/presentation/cubit/favorites_cubit.dart';
+import '../../../news/presentation/cubit/favorites_state.dart';
+import '../../../news/presentation/widgets/news_card.dart';
 
 class FavoritesScreen extends StatelessWidget {
   const FavoritesScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Mock data for favorites - Updated to match new Article entity with twitterDate
-    final List<Article> favoriteArticles = [
-      Article(
-        id: '1',
-        category: 'ksa',
-        title: 'المملكة تطلق أكبر مشروع طاقة شمسية في العالم بنيوم',
-        source: 'العربية',
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-        twitterDate: 'Wed Sep 02 07:43:05 +0000 2026',
-        engagement: '5.2k',
-        img: 'assets/appIcon.jpeg',
-        excerpt: 'أعلنت المملكة العربية السعودية عن إطلاق مشروع طاقة شمسية ضخم في منطقة نيوم بقدرة تتجاوز ١٠ جيجاوات.',
-        tags: ['رؤية 2030', 'طاقة متجددة'],
-      ),
-    ];
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        backgroundColor: isDark ? const Color(0xFF0D1117) : const Color(0xFFF9FAFB),
+        appBar: AppBar(
+          title: const Text('المفضلة', style: TextStyle(fontWeight: FontWeight.bold)),
+          centerTitle: true,
+          elevation: 0,
+          backgroundColor: isDark ? const Color(0xFF161B22) : Colors.white,
+          foregroundColor: isDark ? Colors.white : Colors.black,
+        ),
+        body: SafeArea(
+          child: BlocBuilder<FavoritesCubit, FavoritesState>(
+            builder: (context, state) {
+              if (state is FavoritesLoaded) {
+                final favorites = state.favoriteArticles;
+                
+                if (favorites.isEmpty) {
+                  return _buildEmptyState(context);
+                }
 
-    return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0D1117) : const Color(0xFFF9FAFB),
-      appBar: AppBar(
-        title: const Text('المفضلة', style: TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        foregroundColor: isDark ? Colors.white : Colors.black,
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  itemCount: favorites.length,
+                  itemBuilder: (context, index) {
+                    // Add section header for the first item
+                    if (index == 0) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionHeader(theme, "مجموعتك المحفوظة"),
+                          const SizedBox(height: 16),
+                          NewsCard(article: favorites[index]),
+                        ],
+                      );
+                    }
+                    return NewsCard(article: favorites[index]);
+                  },
+                );
+              }
+              return const Center(child: CircularProgressIndicator(color: Color(0xFF006C35)));
+            },
+          ),
+        ),
       ),
-      body: SafeArea(
-        child: favoriteArticles.isEmpty
-            ? _buildEmptyState(context)
-            : ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: favoriteArticles.length,
-                itemBuilder: (context, index) {
-                  return NewsCard(
-                    article: favoriteArticles[index],
-                    isFavorite: true,
-                    onFavorite: () {
-                      // Logic to remove from favorites
-                    },
-                  );
-                },
-              ),
-      ),
+    );
+  }
+
+  Widget _buildSectionHeader(ThemeData theme, String title) {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 20,
+          decoration: BoxDecoration(
+            color: const Color(0xFF006C35),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+        ),
+      ],
     );
   }
 

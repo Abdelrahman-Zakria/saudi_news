@@ -295,8 +295,6 @@ class _SportsScreenState extends State<SportsScreen> {
         }
         return SmallNewsCard(
           article: state.news[index],
-          isFavorite: false,
-          onFavorite: () {},
         );
       },
     );

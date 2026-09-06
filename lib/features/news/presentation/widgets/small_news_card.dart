@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../domain/entities/article.dart';
 import '../pages/article_details_page.dart';
 import '../../../../core/widgets/app_article_image.dart';
+import '../cubit/favorites_cubit.dart';
+import '../cubit/favorites_state.dart';
 
 class SmallNewsCard extends StatelessWidget {
   final Article article;
-  final VoidCallback? onFavorite;
-  final bool isFavorite;
 
   const SmallNewsCard({
     super.key,
     required this.article,
-    this.onFavorite,
-    this.isFavorite = false,
   });
 
   @override
@@ -41,7 +40,7 @@ class SmallNewsCard extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha:0.05),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 2,
               offset: const Offset(0, 1),
             ),
@@ -107,15 +106,18 @@ class SmallNewsCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            GestureDetector(
-              onTap: onFavorite,
-              child: Text(
-                isFavorite ? "♥" : "♡",
-                style: TextStyle(
-                  fontSize: 18,
-                  color: isFavorite ? const Color(0xFF006C35) : (isDark ? const Color(0xFF4B5563) : const Color(0xFFD1D5DB)),
-                ),
-              ),
+            BlocBuilder<FavoritesCubit, FavoritesState>(
+              builder: (context, state) {
+                final isFavorite = state.favoriteIds.contains(article.id);
+                return GestureDetector(
+                  onTap: () => context.read<FavoritesCubit>().toggleFavorite(article),
+                  child: Icon(
+                    isFavorite ? Icons.favorite : Icons.favorite_border,
+                    size: 20,
+                    color: isFavorite ? const Color(0xFFDC2626) : (isDark ? const Color(0xFF4B5563) : const Color(0xFFD1D5DB)),
+                  ),
+                );
+              },
             ),
           ],
         ),

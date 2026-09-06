@@ -4,6 +4,7 @@ import '../cubit/directory_cubit.dart';
 import '../cubit/directory_state.dart';
 import '../../domain/entities/directory_contact.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../news/presentation/widgets/category_pills.dart';
 
 class DirectoryScreen extends StatefulWidget {
   const DirectoryScreen({super.key});
@@ -14,22 +15,38 @@ class DirectoryScreen extends StatefulWidget {
 
 class _DirectoryScreenState extends State<DirectoryScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
+  final List<CategoryItem> _categories = [
+    CategoryItem(id: "الكل", label: "الكل"),
+    CategoryItem(id: "طوارئ", label: "🚨 طوارئ"),
+    CategoryItem(id: "تجارة", label: "🛍️ تجارة"),
+    CategoryItem(id: "جهة اتصال شخصية", label: "👤 جهات اتصالي"),
+    CategoryItem(id: "عام", label: "📁 عام"),
+  ];
 
   @override
   void initState() {
     super.initState();
-    // Start sync and initial fetch
-    context.read<DirectoryCubit>().syncUserContacts();
     context.read<DirectoryCubit>().init();
     
     _searchController.addListener(() {
       context.read<DirectoryCubit>().searchContacts(_searchController.text);
     });
+
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      context.read<DirectoryCubit>().loadMore();
+    }
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -42,29 +59,90 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
       child: Column(
         children: [
           _buildSearchBar(isDark),
+          BlocBuilder<DirectoryCubit, DirectoryState>(
+            buildWhen: (previous, current) => previous.activeCategory != current.activeCategory,
+            builder: (context, state) {
+              return CategoryPills(
+                categories: _categories,
+                activeCategoryId: state.activeCategory,
+                onCategorySelected: (id) {
+                  context.read<DirectoryCubit>().changeCategory(id);
+                },
+              );
+            },
+          ),
           Expanded(
             child: BlocBuilder<DirectoryCubit, DirectoryState>(
               builder: (context, state) {
-                if (state is DirectoryLoading) {
+                if (state is DirectoryLoading && state.searchQuery.isEmpty && state.activeCategory == "الكل") {
                   return const Center(child: CircularProgressIndicator(color: Color(0xFF006C35)));
                 }
 
                 if (state is DirectoryError) {
-                  return Center(child: Text(state.message));
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                          const SizedBox(height: 16),
+                          const Text(
+                            "حدث خطأ أثناء تحميل البيانات.",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "يرجى التأكد من اتصال الإنترنت والمحاولة مرة أخرى.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 12),
+                          ),
+                          TextButton(
+                            onPressed: () => context.read<DirectoryCubit>().init(),
+                            child: const Text("إعادة المحاولة", style: TextStyle(color: Color(0xFF006C35))),
+                          )
+                        ],
+                      ),
+                    ),
+                  );
                 }
 
-                if (state is DirectoryLoaded) {
-                  if (state.contacts.isEmpty) {
+                if (state is DirectoryLoaded || state is DirectoryLoading) {
+                  final contacts = state is DirectoryLoaded ? state.contacts : <DirectoryContact>[];
+                  final bool hasMore = state is DirectoryLoaded ? state.hasMore : false;
+
+                  if (contacts.isEmpty && state is DirectoryLoaded) {
                     return _buildEmptyState();
                   }
 
-                  return ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: state.contacts.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      return _buildContactCard(state.contacts[index], isDark);
-                    },
+                  return Stack(
+                    children: [
+                      ListView.separated(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.all(16),
+                        itemCount: contacts.length + (hasMore ? 1 : 0),
+                        separatorBuilder: (context, index) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          if (index == contacts.length) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 20),
+                              child: Center(child: CircularProgressIndicator(color: Color(0xFF006C35))),
+                            );
+                          }
+                          return _buildContactCard(contacts[index], isDark);
+                        },
+                      ),
+                      if (state is DirectoryLoading && contacts.isNotEmpty)
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          child: const LinearProgressIndicator(
+                            backgroundColor: Colors.transparent,
+                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF006C35)),
+                          ),
+                        ),
+                    ],
                   );
                 }
 
@@ -96,10 +174,19 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
               child: TextField(
                 controller: _searchController,
                 textAlign: TextAlign.right,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: "ابحث عن اسم أو رقم...",
                   border: InputBorder.none,
-                  hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+                  hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+                  suffixIcon: _searchController.text.isNotEmpty 
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          _searchController.clear();
+                          context.read<DirectoryCubit>().searchContacts("");
+                        },
+                      )
+                    : null,
                 ),
               ),
             ),
@@ -110,6 +197,8 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
   }
 
   Widget _buildContactCard(DirectoryContact contact, bool isDark) {
+    final bool isEmergency = contact.category == 'طوارئ';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -123,13 +212,19 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: const Color(0xFF006C35).withOpacity(0.1),
+              color: isEmergency 
+                  ? Colors.red.withOpacity(0.1) 
+                  : const Color(0xFF006C35).withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
             child: Text(
-              contact.name.isNotEmpty ? contact.name[0] : "👤",
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF006C35)),
+              isEmergency ? "🚨" : (contact.name.isNotEmpty ? contact.name[0] : "👤"),
+              style: TextStyle(
+                fontSize: 20, 
+                fontWeight: FontWeight.bold, 
+                color: isEmergency ? Colors.red : const Color(0xFF006C35)
+              ),
             ),
           ),
           const SizedBox(width: 16),
@@ -145,12 +240,17 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                 Text(
                   contact.phone,
                   style: const TextStyle(color: Color(0xFF6B7280), fontSize: 14),
+                  textDirection: TextDirection.ltr,
                 ),
-                if (contact.category != 'عام') ...[
+                if (contact.category != 'عام' && contact.category != 'الكل') ...[
                   const SizedBox(height: 4),
                   Text(
                     contact.category,
-                    style: const TextStyle(color: Color(0xFF006C35), fontSize: 12, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: isEmergency ? Colors.red : const Color(0xFF006C35), 
+                      fontSize: 12, 
+                      fontWeight: FontWeight.w600
+                    ),
                   ),
                 ],
               ],
@@ -158,7 +258,12 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.call, color: Color(0xFF006C35)),
-            onPressed: () => launchUrl(Uri.parse('tel:${contact.phone}')),
+            onPressed: () async {
+              final Uri url = Uri.parse('tel:${contact.phone}');
+              if (await canLaunchUrl(url)) {
+                await launchUrl(url);
+              }
+            },
           ),
         ],
       ),
@@ -166,13 +271,13 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
   }
 
   Widget _buildEmptyState() {
-    return Center(
+    return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text("📞", style: TextStyle(fontSize: 48)),
-          const SizedBox(height: 16),
-          const Text("لم يتم العثور على نتائج", style: TextStyle(color: Color(0xFF9CA3AF))),
+          Text("📞", style: TextStyle(fontSize: 48)),
+          SizedBox(height: 16),
+          Text("لم يتم العثور على نتائج", style: TextStyle(color: Color(0xFF9CA3AF))),
         ],
       ),
     );

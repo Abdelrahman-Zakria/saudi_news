@@ -100,7 +100,7 @@ class ArticleModel extends Article {
       createdAt: createdAt,
       twitterDate: twitterDate,
       engagement: engagementStr,
-      img: mediaUrls.isNotEmpty ? mediaUrls.first : 'assets/appIcon.jpeg',
+      img: mediaUrls.isNotEmpty ? mediaUrls.first : 'assets/appIconNew.jpeg',
       excerpt: cleanText,
       tags: [category],
       mediaUrls: mediaUrls,
@@ -108,6 +108,44 @@ class ArticleModel extends Article {
       likeCount: likes,
       retweetCount: retweets,
       replyCount: data['replyCount'] as int? ?? 0,
+    );
+  }
+
+  factory ArticleModel.fromJson(Map<String, dynamic> data) {
+    final mediaList = data['media'] as List<dynamic>? ?? [];
+    final mediaUrls = <String>[];
+
+    for (final m in mediaList) {
+      final map = m as Map<String, dynamic>;
+      final thumb = map['media_url_https'] as String?;
+      if (thumb != null) mediaUrls.add(thumb);
+    }
+
+    DateTime createdAt;
+    if (data['timestamp'] is Timestamp) {
+      createdAt = (data['timestamp'] as Timestamp).toDate();
+    } else if (data['timestamp'] is String) {
+      createdAt = DateTime.parse(data['timestamp']);
+    } else {
+      createdAt = DateTime.now();
+    }
+
+    return ArticleModel(
+      id: data['tweetId'] ?? data['id'] ?? '',
+      category: data['category'] ?? 'عام',
+      title: (data['text'] as String? ?? '').split('\n').first,
+      source: data['author'] ?? 'غير معروف',
+      createdAt: createdAt,
+      twitterDate: data['createdAt'] ?? '',
+      engagement: data['engagement'] ?? '0',
+      img: mediaUrls.isNotEmpty ? mediaUrls.first : 'assets/appIconNew.jpeg',
+      excerpt: data['text'] ?? '',
+      tags: [data['category'] ?? 'عام'],
+      mediaUrls: mediaUrls,
+      videoUrl: data['videoUrl'],
+      likeCount: data['likeCount'] ?? 0,
+      retweetCount: data['retweetCount'] ?? 0,
+      replyCount: data['replyCount'] ?? 0,
     );
   }
 }

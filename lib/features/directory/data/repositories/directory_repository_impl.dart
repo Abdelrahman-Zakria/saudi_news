@@ -8,31 +8,56 @@ class DirectoryRepositoryImpl {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final _settingsService = SettingsService();
 
-  Stream<List<DirectoryContact>> getContactsStream({String? query}) {
-    Query firestoreQuery = _firestore.collection('phone_directory');
+  Stream<List<DirectoryContact>> getContactsStream({String? query, String? category, int limit = 20}) {
+    CollectionReference collection = _firestore.collection('phone_directory');
+    Query firestoreQuery = collection;
     
-    if (query != null && query.isNotEmpty) {
-      firestoreQuery = firestoreQuery
-          .where('name', isGreaterThanOrEqualTo: query)
-          .where('name', isLessThanOrEqualTo: query + '\uf8ff');
+    // Filter by Category if specified
+    if (category != null && category != "الكل") {
+      firestoreQuery = firestoreQuery.where('category', isEqualTo: category);
     }
 
-    return firestoreQuery.limit(100).snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) => DirectoryContactModel.fromFirestore(doc)).toList();
+    if (query != null && query.isNotEmpty) {
+      final bool isNumeric = RegExp(r'^[0-9]+$').hasMatch(query);
+      
+      if (isNumeric) {
+        firestoreQuery = firestoreQuery
+            .where('phone', isGreaterThanOrEqualTo: query)
+            .where('phone', isLessThanOrEqualTo: query + '\uf8ff');
+      } else {
+        firestoreQuery = firestoreQuery
+            .where('name', isGreaterThanOrEqualTo: query)
+            .where('name', isLessThanOrEqualTo: query + '\uf8ff');
+      }
+    }
+
+    // CRITICAL: We removed orderBy from Firestore to avoid "Missing Index" errors.
+    // We fetch a bit more than the limit to handle memory sorting and then truncate.
+    return firestoreQuery.limit(limit * 2).snapshots().map((snapshot) {
+      final contacts = snapshot.docs.map((doc) => DirectoryContactModel.fromFirestore(doc)).toList();
+      
+      // Memory Sorting: Ensure 'طوارئ' is ALWAYS at the absolute top
+      contacts.sort((a, b) {
+        if (a.category == 'طوارئ' && b.category != 'طوارئ') return -1;
+        if (a.category != 'طوارئ' && b.category == 'طوارئ') return 1;
+        return a.name.compareTo(b.name);
+      });
+      
+      // Apply the actual requested limit after sorting
+      if (contacts.length > limit) {
+        return contacts.sublist(0, limit);
+      }
+      return contacts;
     });
   }
 
   Future<void> syncLocalContacts() async {
     if (_settingsService.contactsSynced) return;
 
-    // Correct permission request for flutter_contacts ^2.3.1
-    // It requires a PermissionType and returns a PermissionStatus
     final PermissionStatus status = await FlutterContacts.permissions.request(PermissionType.read);
     final bool permissionGranted = status == PermissionStatus.granted;
     
     if (permissionGranted) {
-      // Correct fetching method for flutter_contacts ^2.3.1
-      // Fetching all contacts with phone properties
       final List<Contact> contacts = await FlutterContacts.getAll(
         properties: {ContactProperty.phone},
       );
@@ -47,7 +72,6 @@ class DirectoryRepositoryImpl {
           final String normalized = _normalizePhone(phone.number);
           if (normalized.isEmpty) continue;
 
-          // Correct Firestore method is .doc(), not .document()
           final DocumentReference docRef = _firestore.collection('phone_directory').doc(normalized);
           
           batch.set(docRef, {
@@ -56,10 +80,10 @@ class DirectoryRepositoryImpl {
             'category': 'جهة اتصال شخصية',
             'source': 'user_contacts',
             'last_sync': FieldValue.serverTimestamp(),
+            'is_emergency': false,
           }, SetOptions(merge: true));
           
           count++;
-          // Firestore batches are limited to 500 operations
           if (count >= 500) {
             await batch.commit();
             await _settingsService.setContactsSynced(true);

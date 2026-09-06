@@ -11,6 +11,7 @@ class DirectoryContactModel extends DirectoryContact {
     super.region,
     super.website,
     required super.source,
+    super.isEmergency,
   });
 
   factory DirectoryContactModel.fromFirestore(DocumentSnapshot doc) {
@@ -24,6 +25,7 @@ class DirectoryContactModel extends DirectoryContact {
       region: data['region'],
       website: data['website'],
       source: data['source'] ?? 'unknown',
+      isEmergency: data['is_emergency'] ?? false,
     );
   }
 
@@ -36,6 +38,7 @@ class DirectoryContactModel extends DirectoryContact {
       'region': contact.region,
       'website': contact.website,
       'source': contact.source,
+      'is_emergency': contact.isEmergency,
     };
   }
 }

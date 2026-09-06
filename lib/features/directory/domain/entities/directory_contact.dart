@@ -7,6 +7,7 @@ class DirectoryContact {
   final String? region;
   final String? website;
   final String source;
+  final bool isEmergency;
 
   DirectoryContact({
     required this.id,
@@ -17,5 +18,6 @@ class DirectoryContact {
     this.region,
     this.website,
     required this.source,
+    this.isEmergency = false,
   });
 }

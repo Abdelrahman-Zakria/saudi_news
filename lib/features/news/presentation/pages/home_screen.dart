@@ -9,6 +9,8 @@ import '../widgets/category_pills.dart';
 import '../widgets/breaking_ticker.dart';
 import 'article_details_page.dart';
 import '../../../../core/widgets/app_article_image.dart';
+import '../cubit/favorites_cubit.dart';
+import '../cubit/favorites_state.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,7 +22,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final Set<String> _favorites = {};
 
   final List<CategoryItem> _sections = [
     CategoryItem(id: "all", label: "الكل"),
@@ -53,16 +54,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  void _toggleFavorite(String id) {
-    setState(() {
-      if (_favorites.contains(id)) {
-        _favorites.remove(id);
-      } else {
-        _favorites.add(id);
-      }
-    });
   }
 
   @override
@@ -234,28 +225,33 @@ class _HomeScreenState extends State<HomeScreen> {
           Positioned(
             top: 12,
             left: 12,
-            child: GestureDetector(
-              onTap: () => _toggleFavorite(featured.id),
-              child: Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: _favorites.contains(featured.id)
-                      ? const Color(0xFF006C35)
-                      : Colors.white.withValues(alpha: 0.8),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    _favorites.contains(featured.id) ? "♥" : "♡",
-                    style: TextStyle(
-                      color: _favorites.contains(featured.id) ? Colors.white : const Color(0xFF4B5563),
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+            child: BlocBuilder<FavoritesCubit, FavoritesState>(
+              builder: (context, state) {
+                final isFavorite = context.read<FavoritesCubit>().isFavorite(featured.id);
+                return GestureDetector(
+                  onTap: () => context.read<FavoritesCubit>().toggleFavorite(featured),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: isFavorite
+                          ? const Color(0xFF006C35)
+                          : Colors.white.withValues(alpha:0.8),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        isFavorite ? "♥" : "♡",
+                        style: TextStyle(
+                          color: isFavorite ? Colors.white : const Color(0xFF4B5563),
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
         ],
@@ -391,8 +387,6 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 12),
               ...rest.map((a) => SmallNewsCard(
                 article: a,
-                isFavorite: _favorites.contains(a.id),
-                onFavorite: () => _toggleFavorite(a.id),
               )).toList(),
             ],
           ),
@@ -434,8 +428,6 @@ class _HomeScreenState extends State<HomeScreen> {
           else
             ...results.map((a) => SmallNewsCard(
               article: a,
-              isFavorite: _favorites.contains(a.id),
-              onFavorite: () => _toggleFavorite(a.id),
             )).toList(),
         ],
       ),

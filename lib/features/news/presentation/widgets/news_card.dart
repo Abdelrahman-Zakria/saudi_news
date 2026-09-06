@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../domain/entities/article.dart';
 import '../pages/article_details_page.dart';
 import '../../../../core/widgets/app_article_image.dart';
+import '../cubit/favorites_cubit.dart';
+import '../cubit/favorites_state.dart';
 
 class NewsCard extends StatelessWidget {
   final Article article;
-  final VoidCallback? onFavorite;
-  final bool isFavorite;
 
   const NewsCard({
     super.key,
     required this.article,
-    this.onFavorite,
-    this.isFavorite = false,
   });
 
   @override
@@ -61,28 +60,30 @@ class NewsCard extends StatelessWidget {
                 Positioned(
                   top: 8,
                   left: 8,
-                  child: GestureDetector(
-                    onTap: onFavorite,
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: isFavorite
-                            ? const Color(0xFF006C35)
-                            : Colors.white.withValues(alpha:0.8),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          isFavorite ? "♥" : "♡",
-                          style: TextStyle(
-                            color: isFavorite ? Colors.white : const Color(0xFF4B5563),
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                  child: BlocBuilder<FavoritesCubit, FavoritesState>(
+                    builder: (context, state) {
+                      final isFavorite = state.favoriteIds.contains(article.id);
+                      return GestureDetector(
+                        onTap: () => context.read<FavoritesCubit>().toggleFavorite(article),
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: isFavorite
+                                ? const Color(0xFFDC2626)
+                                : Colors.white.withOpacity(0.8),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Icon(
+                              isFavorite ? Icons.favorite : Icons.favorite_border,
+                              color: isFavorite ? Colors.white : const Color(0xFF4B5563),
+                              size: 18,
+                            ),
                           ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ),
                 if (article.videoUrl != null)
@@ -109,7 +110,7 @@ class NewsCard extends StatelessWidget {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha:0.5),
+                                color: Colors.black.withOpacity(0.5),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(

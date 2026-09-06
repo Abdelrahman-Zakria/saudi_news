@@ -32,4 +32,11 @@ class SettingsService {
   // Contacts Sync
   bool get contactsSynced => _prefs.getBool('contactsSynced') ?? false;
   Future<void> setContactsSynced(bool value) async => await _prefs.setBool('contactsSynced', value);
+
+  // Favorites
+  List<String> get favoriteIds => _prefs.getStringList('favoriteIds') ?? [];
+  Future<void> setFavoriteIds(List<String> ids) async => await _prefs.setStringList('favoriteIds', ids);
+
+  List<String> getCachedFavoriteArticles() => _prefs.getStringList('cachedArticles') ?? [];
+  Future<void> setCachedFavoriteArticles(List<String> data) async => await _prefs.setStringList('cachedArticles', data);
 }

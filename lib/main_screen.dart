@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:saudi_news/features/news/presentation/pages/home_screen.dart';
 import 'package:saudi_news/features/jobs/presentation/pages/jobs_screen.dart';
 import 'package:saudi_news/features/sports/presentation/pages/sports_screen.dart';
@@ -6,6 +7,7 @@ import 'package:saudi_news/features/directory/presentation/pages/directory_scree
 import 'package:saudi_news/features/settings/presentation/pages/more_menu_screen.dart';
 import 'package:saudi_news/core/widgets/app_bottom_nav.dart';
 import 'package:saudi_news/core/widgets/app_header.dart';
+import 'package:saudi_news/features/directory/presentation/cubit/directory_cubit.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -21,6 +23,11 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       _currentIndex = index;
     });
+
+    // Trigger contacts sync ONLY when the user manually opens the Directory tab (index 1)
+    if (index == 1) {
+      context.read<DirectoryCubit>().syncUserContacts();
+    }
   }
 
   String _getTitle() {

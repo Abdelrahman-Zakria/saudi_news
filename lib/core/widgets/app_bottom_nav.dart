@@ -12,8 +12,9 @@ class AppBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final saudiGreen = const Color(0xFF006C35);
+    final navBgColor = const Color(0xFF006559);
+    final activeColor = Colors.white;
+    final inactiveColor = Colors.white.withOpacity(0.6);
 
     final tabs = [
       {'icon': '🏠', 'label': 'الرئيسية'},
@@ -25,15 +26,16 @@ class AppBottomNav extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF161B22) : Colors.white,
+        color: navBgColor,
         border: Border(
           top: BorderSide(
-            color: isDark ? const Color(0xFF1F2937) : const Color(0xFFF3F4F6),
+            color: Colors.black.withOpacity(0.05),
           ),
         ),
       ),
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).padding.bottom + 8,
+        top: 8,
       ),
       child: Row(
         children: List.generate(tabs.length, (index) {
@@ -44,42 +46,37 @@ class AppBottomNav extends StatelessWidget {
             child: GestureDetector(
               onTap: () => onTap(index),
               behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AnimatedScale(
-                      scale: isSelected ? 1.1 : 1.0,
-                      duration: const Duration(milliseconds: 200),
-                      child: Text(
-                        tab['icon']!,
-                        style: const TextStyle(fontSize: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedScale(
+                    scale: isSelected ? 1.1 : 1.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Text(
+                      tab['icon']!,
+                      style: const TextStyle(fontSize: 20),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    tab['label']!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? activeColor : inactiveColor,
+                    ),
+                  ),
+                  if (isSelected)
+                    Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      width: 4,
+                      height: 4,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      tab['label']!,
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                        color: isSelected
-                            ? saudiGreen
-                            : (isDark ? Colors.grey[500] : Colors.grey[400]),
-                      ),
-                    ),
-                    if (isSelected)
-                      Container(
-                        margin: const EdgeInsets.only(top: 2),
-                        width: 4,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: saudiGreen,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                  ],
-                ),
+                ],
               ),
             ),
           );
