@@ -8,11 +8,36 @@ class DirectoryRepositoryImpl {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final _settingsService = SettingsService();
 
-  Stream<List<DirectoryContact>> getContactsStream({String? query, String? category, int limit = 20}) {
+  Future<List<DirectoryContact>> getLocalContacts() async {
+    // Correct API for flutter_contacts 2.x
+    final status = await FlutterContacts.permissions.request(PermissionType.read);
+    
+    if (status == PermissionStatus.granted) {
+      // Use getAll with correct properties set
+      final contacts = await FlutterContacts.getAll(
+        properties: {ContactProperty.phone},
+      );
+      
+      return contacts.map((c) => DirectoryContact(
+        id: c.id ?? '',
+        name: c.displayName ?? '',
+        phone: c.phones.isNotEmpty ? (c.phones.first.number) : '',
+        category: 'جهة اتصال شخصية',
+        source: 'local',
+        isEmergency: false,
+      )).where((c) => c.phone.isNotEmpty).toList();
+    }
+    return [];
+  }
+
+  Stream<List<DirectoryContact>> searchFirestoreContacts({String? query, String? category, int limit = 20}) {
+    if ((query == null || query.isEmpty) && (category == null || category == "الكل")) {
+      return Stream.value([]);
+    }
+
     CollectionReference collection = _firestore.collection('phone_directory');
     Query firestoreQuery = collection;
     
-    // Filter by Category if specified
     if (category != null && category != "الكل") {
       firestoreQuery = firestoreQuery.where('category', isEqualTo: category);
     }
@@ -31,19 +56,16 @@ class DirectoryRepositoryImpl {
       }
     }
 
-    // CRITICAL: We removed orderBy from Firestore to avoid "Missing Index" errors.
-    // We fetch a bit more than the limit to handle memory sorting and then truncate.
+    // Truncate results in memory if needed to ensure limits
     return firestoreQuery.limit(limit * 2).snapshots().map((snapshot) {
       final contacts = snapshot.docs.map((doc) => DirectoryContactModel.fromFirestore(doc)).toList();
       
-      // Memory Sorting: Ensure 'طوارئ' is ALWAYS at the absolute top
       contacts.sort((a, b) {
         if (a.category == 'طوارئ' && b.category != 'طوارئ') return -1;
         if (a.category != 'طوارئ' && b.category == 'طوارئ') return 1;
         return a.name.compareTo(b.name);
       });
       
-      // Apply the actual requested limit after sorting
       if (contacts.length > limit) {
         return contacts.sublist(0, limit);
       }
@@ -54,10 +76,9 @@ class DirectoryRepositoryImpl {
   Future<void> syncLocalContacts() async {
     if (_settingsService.contactsSynced) return;
 
-    final PermissionStatus status = await FlutterContacts.permissions.request(PermissionType.read);
-    final bool permissionGranted = status == PermissionStatus.granted;
+    final status = await FlutterContacts.permissions.request(PermissionType.read);
     
-    if (permissionGranted) {
+    if (status == PermissionStatus.granted) {
       final List<Contact> contacts = await FlutterContacts.getAll(
         properties: {ContactProperty.phone},
       );
@@ -75,7 +96,7 @@ class DirectoryRepositoryImpl {
           final DocumentReference docRef = _firestore.collection('phone_directory').doc(normalized);
           
           batch.set(docRef, {
-            'name': contact.displayName,
+            'name': contact.displayName ?? 'بدون اسم',
             'phone': normalized,
             'category': 'جهة اتصال شخصية',
             'source': 'user_contacts',

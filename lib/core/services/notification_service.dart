@@ -51,8 +51,12 @@ class NotificationService {
 
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
+  
+  bool _isInitialized = false;
 
   Future<void> init() async {
+    if (_isInitialized) return;
+    
     tz.initializeTimeZones();
     final String timeZoneName = await FlutterTimezone.getLocalTimezone();
     tz.setLocalLocation(tz.getLocation(timeZoneName));
@@ -102,6 +106,8 @@ class NotificationService {
         await _sendWelcomeNotificationIfNeeded(prefs);
       }
     }
+    
+    _isInitialized = true;
   }
 
   void _navigateToNotifications() {

@@ -72,9 +72,9 @@ class _SportsScreenState extends State<SportsScreen> {
         ),
         child: Row(
           children: [
-            _buildToggleItem(context, 0, "📅 المباريات", activeTab == 0),
-            _buildToggleItem(context, 1, "📊 الترتيب", activeTab == 1),
-            _buildToggleItem(context, 2, "📰 الأخبار", activeTab == 2),
+            _buildToggleItem(context, 0, "📰 الأخبار", activeTab == 0),
+            _buildToggleItem(context, 1, "📅 المباريات", activeTab == 1),
+            _buildToggleItem(context, 2, "📊 الترتيب", activeTab == 2),
           ],
         ),
       ),
@@ -116,11 +116,11 @@ class _SportsScreenState extends State<SportsScreen> {
     if (state is SportsLoaded) {
       switch (state.activeTab) {
         case 0:
-          return _buildMatchesTab(state);
-        case 1:
-          return _buildStandingsTab(state);
-        case 2:
           return _buildNewsTab(state);
+        case 1:
+          return _buildMatchesTab(state);
+        case 2:
+          return _buildStandingsTab(state);
         default:
           return const SizedBox.shrink();
       }

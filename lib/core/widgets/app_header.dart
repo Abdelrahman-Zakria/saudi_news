@@ -68,14 +68,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             alignment: Alignment.center,
-            child: const Text(
-              'س',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            child: Image.asset('assets/appIconNew.jpeg'),
           ),
           const SizedBox(width: 8),
           Expanded(

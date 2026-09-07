@@ -1,92 +1,15 @@
-import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import 'package:adhan_dart/adhan_dart.dart';
-import '../../data/repositories/prayer_repository_impl.dart';
-import '../../data/services/prayer_service.dart';
+import '../cubit/prayer_cubit.dart';
+import '../cubit/prayer_state.dart';
 import '../../domain/entities/prayer_time.dart';
 import '../widgets/qibla_compass.dart';
+import '../../../../core/constants/saudi_cities.dart';
 
-class PrayerScreen extends StatefulWidget {
+class PrayerScreen extends StatelessWidget {
   const PrayerScreen({super.key});
-
-  @override
-  State<PrayerScreen> createState() => _PrayerScreenState();
-}
-
-class _PrayerScreenState extends State<PrayerScreen> {
-  late PrayerRepositoryImpl _prayerRepository;
-  List<PrayerTime> _prayerTimes = [];
-  String _remainingTime = "00:00:00";
-  String _nextPrayerName = "";
-  Timer? _timer;
-  final Coordinates _riyadhCoords = Coordinates(24.7136, 46.6753);
-
-  @override
-  void initState() {
-    super.initState();
-    _prayerRepository = PrayerRepositoryImpl(PrayerService());
-    _loadPrayerData();
-    
-    // Timer to update remaining time every second
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      _updateRemainingTime();
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _loadPrayerData() async {
-    final now = DateTime.now();
-    final times = await _prayerRepository.getPrayerTimes(_riyadhCoords, now);
-    
-    // Determine next prayer using adhan_dart logic
-    final params = CalculationMethodParameters.ummAlQura();
-    final adhanTimes = PrayerTimes(
-      coordinates: _riyadhCoords,
-      date: now,
-      calculationParameters: params,
-      precision: true,
-    );
-    
-    final next = adhanTimes.nextPrayer();
-    String nextName = "";
-    switch(next) {
-      case Prayer.fajr: nextName = "الفجر"; break;
-      case Prayer.sunrise: nextName = "الشروق"; break;
-      case Prayer.dhuhr: nextName = "الظهر"; break;
-      case Prayer.asr: nextName = "العصر"; break;
-      case Prayer.maghrib: nextName = "المغرب"; break;
-      case Prayer.isha: nextName = "العشاء"; break;
-      default: nextName = "الفجر";
-    }
-
-    if (mounted) {
-      setState(() {
-        _prayerTimes = times;
-        _nextPrayerName = nextName;
-      });
-      _updateRemainingTime();
-    }
-  }
-
-  Future<void> _updateRemainingTime() async {
-    final remaining = await _prayerRepository.getRemainingTime(_riyadhCoords, DateTime.now());
-    if (mounted) {
-      setState(() {
-        _remainingTime = remaining;
-      });
-      
-      // If remaining is 00:00:00, it might mean prayer time reached, reload data
-      if (remaining == "00:00:00") {
-        _loadPrayerData();
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -102,42 +25,53 @@ class _PrayerScreenState extends State<PrayerScreen> {
         foregroundColor: isDark ? Colors.white : Colors.black,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildHeader(context),
-              const SizedBox(height: 24),
-              if (_prayerTimes.isEmpty)
-                const Center(child: CircularProgressIndicator(color: Color(0xFF006C35)))
-              else
-                _buildPrayerGrid(_prayerTimes),
-              const SizedBox(height: 32),
-              const Center(
-                child: Text(
-                  'اتجاه القبلة',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        child: BlocBuilder<PrayerCubit, PrayerState>(
+          builder: (context, state) {
+            if (state is PrayerLoading) {
+              return const Center(child: CircularProgressIndicator(color: Color(0xFF006C35)));
+            }
+
+            if (state is PrayerLoaded) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildHeader(context, state),
+                    const SizedBox(height: 24),
+                    _buildPrayerGrid(context, state.prayerTimes),
+                    const SizedBox(height: 32),
+                    const Center(
+                      child: Text(
+                        'اتجاه القبلة',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Center(child: QiblaCompass()),
+                    const SizedBox(height: 32),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 16),
-              const Center(child: QiblaCompass()),
-              const SizedBox(height: 32),
-            ],
-          ),
+              );
+            }
+
+            if (state is PrayerError) {
+              return Center(child: Text(state.message));
+            }
+
+            return const SizedBox.shrink();
+          },
         ),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, PrayerLoaded state) {
     final now = DateTime.now();
-    // Using intl to format date in Arabic. 
-    // Assumes initializeDateFormatting('ar') was called in main.dart
     final gregorianDate = DateFormat('EEEE، d MMMM yyyy', 'ar').format(now);
     
-    // Real dates as requested - using placeholder for Hijri to match React design
-    const hijriDate = "٢ صفر ١٤٤٨"; 
+    // Using a simplified Hijri calculation or constant for now
+    final hijriDate = _getSimplifiedHijri(); 
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -146,7 +80,7 @@ class _PrayerScreenState extends State<PrayerScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF006C35).withValues(alpha: 0.3),
+            color: const Color(0xFF006C35).withOpacity(0.3),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -162,24 +96,27 @@ class _PrayerScreenState extends State<PrayerScreen> {
                 children: [
                   Text(
                     gregorianDate,
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13),
+                    style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 13),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     hijriDate,
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
+                    style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
                   ),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(25),
-                ),
-                child: const Text(
-                  '📍 الرياض ▾',
-                  style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+              GestureDetector(
+                onTap: () => _showCityPicker(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  child: Text(
+                    '📍 ${state.cityName} ▾',
+                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
             ],
@@ -193,16 +130,16 @@ class _PrayerScreenState extends State<PrayerScreen> {
                 children: [
                   Text(
                     'الصلاة القادمة',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13),
+                    style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _nextPrayerName,
+                    state.nextPrayerName,
                     style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _remainingTime,
+                    state.remainingTime,
                     style: const TextStyle(
                       color: Colors.white, 
                       fontSize: 18, 
@@ -220,7 +157,55 @@ class _PrayerScreenState extends State<PrayerScreen> {
     );
   }
 
-  Widget _buildPrayerGrid(List<PrayerTime> prayerTimes) {
+  void _showCityPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'اختر المدينة',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.my_location, color: Color(0xFF006C35)),
+                title: const Text('موقعي الحالي'),
+                onTap: () {
+                  context.read<PrayerCubit>().init();
+                  Navigator.pop(context);
+                },
+              ),
+              const Divider(),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: saudiCities.length,
+                  itemBuilder: (context, index) {
+                    final city = saudiCities[index];
+                    return ListTile(
+                      title: Text(city.name),
+                      onTap: () {
+                        context.read<PrayerCubit>().changeCity(city);
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPrayerGrid(BuildContext context, List<PrayerTime> prayerTimes) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -247,7 +232,7 @@ class _PrayerScreenState extends State<PrayerScreen> {
             boxShadow: [
               if (!isDark)
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
+                  color: Colors.black.withOpacity(0.03),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),
@@ -303,5 +288,12 @@ class _PrayerScreenState extends State<PrayerScreen> {
         );
       },
     );
+  }
+
+  String _getSimplifiedHijri() {
+    // This is a placeholder. For a real app, use a hijri package.
+    final now = DateTime.now();
+    // Simplified mapping
+    return "١٧ ربيع الأول ١٤٤٦"; 
   }
 }

@@ -24,8 +24,9 @@ class _MainScreenState extends State<MainScreen> {
       _currentIndex = index;
     });
 
-    // Trigger contacts sync ONLY when the user manually opens the Directory tab (index 1)
+    // Ask for permission and load contacts ONLY when user navigates to the Directory tab (index 1)
     if (index == 1) {
+      context.read<DirectoryCubit>().init();
       context.read<DirectoryCubit>().syncUserContacts();
     }
   }
