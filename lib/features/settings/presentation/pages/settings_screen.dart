@@ -24,8 +24,8 @@ class SettingsScreen extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  _buildProfileCard(isDark),
-                  const SizedBox(height: 24),
+                  // _buildProfileCard(isDark),
+                  // const SizedBox(height: 24),
                   _buildSectionHeader(context, 'المظهر'),
                   _buildSettingTile(
                     context,
@@ -71,30 +71,30 @@ class SettingsScreen extends StatelessWidget {
                     icon: Icons.work_outline,
                   ),
                   const SizedBox(height: 24),
-                  _buildSectionHeader(context, 'عام'),
-                  _buildSettingTile(
-                    context,
-                    title: 'اللغة',
-                    subtitle: state.language,
-                    icon: Icons.language,
-                    onTap: () => _showLanguagePicker(context, state.language),
-                  ),
-                  _buildSettingTile(
-                    context,
-                    title: 'الموقع',
-                    subtitle: 'الرياض، المملكة العربية السعودية',
-                    icon: Icons.location_on_outlined,
-                    onTap: () {},
-                  ),
-                  const SizedBox(height: 32),
-                  TextButton(
-                    onPressed: () {},
-                    child: const Text(
-                      'تسجيل الخروج',
-                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
+                  // _buildSectionHeader(context, 'عام'),
+                  // _buildSettingTile(
+                  //   context,
+                  //   title: 'اللغة',
+                  //   subtitle: state.language,
+                  //   icon: Icons.language,
+                  //   onTap: () => _showLanguagePicker(context, state.language),
+                  // ),
+                  // _buildSettingTile(
+                  //   context,
+                  //   title: 'الموقع',
+                  //   subtitle: 'الرياض، المملكة العربية السعودية',
+                  //   icon: Icons.location_on_outlined,
+                  //   onTap: () {},
+                  // ),
+                  // const SizedBox(height: 32),
+                  // TextButton(
+                  //   onPressed: () {},
+                  //   child: const Text(
+                  //     'تسجيل الخروج',
+                  //     style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                  //   ),
+                  // ),
+                  // const SizedBox(height: 8),
                   Center(
                     child: Text(
                       'الإصدار 1.0.0',
