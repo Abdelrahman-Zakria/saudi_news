@@ -213,8 +213,8 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
             height: 48,
             decoration: BoxDecoration(
               color: isEmergency 
-                  ? Colors.red.withOpacity(0.1) 
-                  : const Color(0xFF006C35).withOpacity(0.1),
+                  ? Colors.red.withValues(alpha:0.1) 
+                  : const Color(0xFF006C35).withValues(alpha:0.1),
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,

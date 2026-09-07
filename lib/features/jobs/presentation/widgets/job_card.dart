@@ -60,7 +60,7 @@ class JobCard extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(2),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withValues(alpha:0.3),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.play_arrow, color: Colors.white, size: 16),

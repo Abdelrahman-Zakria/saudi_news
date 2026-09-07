@@ -1,93 +1,112 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart' as intl;
+import '../cubit/notifications_cubit.dart';
 
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
+
+  @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    context.read<NotificationsCubit>().loadHistory();
+  }
+
+  String _formatTimestamp(String timestamp) {
+    try {
+      final dt = DateTime.parse(timestamp);
+      final now = DateTime.now();
+      final diff = now.difference(dt);
+
+      if (diff.inMinutes < 60) {
+        return "منذ ${diff.inMinutes} دقيقة";
+      } else if (diff.inHours < 24) {
+        return "منذ ${diff.inHours} ساعة";
+      } else {
+        return intl.DateFormat('yyyy/MM/dd').format(dt);
+      }
+    } catch (e) {
+      return "";
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final List<Map<String, dynamic>> notifications = [
-      {
-        'title': 'خبر عاجل: صدور أمر ملكي جديد',
-        'body': 'تفاصيل القرارات الملكية الجديدة التي تم إعلانها مساء اليوم...',
-        'time': 'منذ 10 دقائق',
-        'icon': Icons.notifications_active,
-        'color': Colors.red,
-        'isRead': false,
-      },
-      {
-        'title': 'مباراة الليلة: الهلال ضد النصر',
-        'body': 'استعد لمتابعة ديربي الرياض المثير ضمن منافسات دوري روشن السعودي...',
-        'time': 'منذ ساعة',
-        'icon': Icons.sports_soccer,
-        'color': Colors.blue,
-        'isRead': true,
-      },
-      {
-        'title': 'تحديث التطبيق',
-        'body': 'تتوفر ميزات جديدة في الإصدار الجديد من تطبيق أخبار السعودية...',
-        'time': 'منذ 3 ساعات',
-        'icon': Icons.system_update,
-        'color': Colors.green,
-        'isRead': true,
-      },
-    ];
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('الإشعارات', style: TextStyle(fontWeight: FontWeight.bold)),
+          centerTitle: true,
+          actions: [
+            BlocBuilder<NotificationsCubit, NotificationsState>(
+              builder: (context, state) {
+                if (state.history.isEmpty) return const SizedBox.shrink();
+                return IconButton(
+                  icon: const Icon(Icons.done_all),
+                  tooltip: "تحديد الكل كمقروء",
+                  onPressed: () => context.read<NotificationsCubit>().markAllAsRead(),
+                );
+              },
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: BlocBuilder<NotificationsCubit, NotificationsState>(
+            builder: (context, state) {
+              if (state.isLoading) {
+                return const Center(child: CircularProgressIndicator(color: Color(0xFF006C35)));
+              }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('الإشعارات', style: TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.done_all),
-            onPressed: () {
-              // Mark all as read
-            },
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: notifications.isEmpty
-            ? _buildEmptyState()
-            : ListView.builder(
+              if (state.history.isEmpty) {
+                return _buildEmptyState();
+              }
+
+              return ListView.builder(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: notifications.length,
+                itemCount: state.history.length,
                 itemBuilder: (context, index) {
-                  final item = notifications[index];
+                  final item = state.history[index];
                   return _buildNotificationItem(context, item, isDark);
                 },
-              ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildNotificationItem(BuildContext context, Map<String, dynamic> item, bool isDark) {
     final saudiGreen = const Color(0xFF006C35);
-    final isRead = item['isRead'] as bool;
+    final bool isRead = item['isRead'] ?? true;
     
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
         color: isRead 
           ? (isDark ? const Color(0xFF161B22) : Colors.white)
-          : (isDark ? saudiGreen.withValues(alpha:0.1) : const Color(0xFFF0FDF4)),
+          : (isDark ? saudiGreen.withOpacity(0.1) : const Color(0xFFF0FDF4)),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isRead 
             ? (isDark ? const Color(0xFF1F2937) : const Color(0xFFF3F4F6))
-            : (isDark ? saudiGreen.withValues(alpha:0.3) : const Color(0xFFDCFCE7)),
+            : (isDark ? saudiGreen.withOpacity(0.3) : const Color(0xFFDCFCE7)),
         ),
       ),
       padding: const EdgeInsets.all(12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            item['icon'] is IconData ? "🔔" : item['icon'], // Using emoji if possible
-            style: const TextStyle(fontSize: 24),
-          ),
+          const Text("🔔", style: TextStyle(fontSize: 24)),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -98,7 +117,7 @@ class NotificationsScreen extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        item['title'],
+                        item['title'] ?? '',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -106,24 +125,25 @@ class NotificationsScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Text(
-                      item['time'],
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Color(0xFF9CA3AF),
+                    if (item['timestamp'] != null)
+                      Text(
+                        _formatTimestamp(item['timestamp']),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFF9CA3AF),
+                        ),
                       ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  item['body'],
+                  item['body'] ?? '',
                   style: TextStyle(
                     fontSize: 12,
                     color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF4B5563),
                     height: 1.4,
                   ),
-                  maxLines: 2,
+                  maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -155,7 +175,7 @@ class NotificationsScreen extends StatelessWidget {
           ),
           SizedBox(height: 16),
           Text(
-            'لا توجد إشعارات',
+            'لا توجد إشعارات حالياً',
             style: TextStyle(
               fontSize: 14,
               color: Color(0xFF9CA3AF),

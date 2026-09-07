@@ -14,7 +14,7 @@ class AppBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final navBgColor = const Color(0xFF006559);
     final activeColor = Colors.white;
-    final inactiveColor = Colors.white.withOpacity(0.6);
+    final inactiveColor = Colors.white.withValues(alpha:0.6);
 
     final tabs = [
       {'icon': '🏠', 'label': 'الرئيسية'},
@@ -29,7 +29,7 @@ class AppBottomNav extends StatelessWidget {
         color: navBgColor,
         border: Border(
           top: BorderSide(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha:0.05),
           ),
         ),
       ),

@@ -21,7 +21,7 @@ class ArticleDetailsPage extends StatelessWidget {
         "تابع المزيد عبر تطبيق أخبار السعودية:\n"
         "${Platform.isAndroid ? 'https://play.google.com/store/apps/details?id=com.saudi.news' : 'https://apps.apple.com/app/id123456789'}";
     
-    Share.share(text);
+    SharePlus.instance.share(ShareParams(text: text));
   }
 
   @override
@@ -46,7 +46,7 @@ class ArticleDetailsPage extends StatelessWidget {
               leading: Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: CircleAvatar(
-                  backgroundColor: Colors.black.withOpacity(0.4),
+                  backgroundColor: Colors.black.withValues(alpha:0.4),
                   child: IconButton(
                     icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
                     onPressed: () => Navigator.pop(context),
@@ -60,7 +60,7 @@ class ArticleDetailsPage extends StatelessWidget {
                     builder: (context, state) {
                       final isFavorite = state.favoriteIds.contains(article.id);
                       return CircleAvatar(
-                        backgroundColor: Colors.black.withOpacity(0.4),
+                        backgroundColor: Colors.black.withValues(alpha:0.4),
                         child: IconButton(
                           icon: Icon(
                             isFavorite ? Icons.favorite : Icons.favorite_border,
@@ -76,7 +76,7 @@ class ArticleDetailsPage extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: CircleAvatar(
-                    backgroundColor: Colors.black.withOpacity(0.4),
+                    backgroundColor: Colors.black.withValues(alpha:0.4),
                     child: IconButton(
                       icon: const Icon(Icons.share_outlined, color: Colors.white, size: 20),
                       onPressed: () => _shareArticle(context),
