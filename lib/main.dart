@@ -20,6 +20,7 @@ import 'features/directory/presentation/cubit/directory_cubit.dart';
 import 'features/news/presentation/cubit/favorites_cubit.dart';
 import 'features/settings/presentation/cubit/notifications_cubit.dart';
 import 'features/prayer/presentation/cubit/prayer_cubit.dart';
+import 'core/services/ad_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -43,8 +44,27 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final AdService _adService = AdService();
+
+  @override
+  void initState() {
+    super.initState();
+    _adService.initialize();
+  }
+
+  @override
+  void dispose() {
+    _adService.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

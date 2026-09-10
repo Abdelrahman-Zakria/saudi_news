@@ -8,6 +8,7 @@ import 'package:saudi_news/features/settings/presentation/pages/more_menu_screen
 import 'package:saudi_news/core/widgets/app_bottom_nav.dart';
 import 'package:saudi_news/core/widgets/app_header.dart';
 import 'package:saudi_news/features/directory/presentation/cubit/directory_cubit.dart';
+import 'package:saudi_news/core/services/ad_service.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -66,9 +67,15 @@ class _MainScreenState extends State<MainScreen> {
         index: _currentIndex,
         children: screens,
       ),
-      bottomNavigationBar: AppBottomNav(
-        currentIndex: _currentIndex,
-        onTap: _onTabChanged,
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const AdBanner(),
+          AppBottomNav(
+            currentIndex: _currentIndex,
+            onTap: _onTabChanged,
+          ),
+        ],
       ),
     );
   }
