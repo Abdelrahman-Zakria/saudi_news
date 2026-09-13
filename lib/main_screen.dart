@@ -62,7 +62,10 @@ class _MainScreenState extends State<MainScreen> {
     ];
 
     return Scaffold(
-      appBar: AppHeader(title: _getTitle()),
+      appBar: AppHeader(
+        title: _getTitle(),
+        onLogoTap: () => _onTabChanged(0),
+      ),
       body: IndexedStack(
         index: _currentIndex,
         children: screens,

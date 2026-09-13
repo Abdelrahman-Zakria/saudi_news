@@ -13,6 +13,11 @@ import '../../features/settings/presentation/pages/notifications_screen.dart';
 import '../../features/news/presentation/pages/article_details_page.dart';
 import '../../features/news/data/repositories/news_repository_impl.dart';
 import '../../features/news/domain/entities/article.dart';
+import '../../features/news/presentation/cubit/news_cubit.dart';
+import '../../features/news/presentation/cubit/tech_news_cubit.dart';
+import '../../features/jobs/presentation/cubit/jobs_cubit.dart';
+import '../../features/sports/presentation/cubit/sports_cubit.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(fcm.RemoteMessage message) async {
@@ -57,7 +62,6 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   
   bool _isInitialized = false;
-  Map<String, dynamic>? _pendingDeepLink;
 
   Future<void> init() async {
     if (_isInitialized) return;
@@ -110,14 +114,12 @@ class NotificationService {
     await _initFirebaseMessaging();
 
     // 4. Handle terminated state launch (Cold Start)
-    // We do this AFTER a small delay to ensure navigator key is ready
     Future.delayed(const Duration(seconds: 1), () async {
       fcm.RemoteMessage? initialMessage = await fcm.FirebaseMessaging.instance.getInitialMessage();
       if (initialMessage != null) {
         dev.log("🔥 App opened from terminated state via FCM: ${initialMessage.messageId}");
         handleDeepLink(initialMessage.data);
       } else {
-        // Also check Local Notifications launch details for cold start
         final details = await flutterLocalNotificationsPlugin.getNotificationAppLaunchDetails();
         if (details?.didNotificationLaunchApp ?? false) {
            final payload = details?.notificationResponse?.payload;
@@ -166,7 +168,6 @@ class NotificationService {
         article = await repository.getArticleById(tweetId, collection: collection);
       }
       
-      // If not found in primary collection, try fallbacks
       if (article == null) {
         final collections = ['news', 'technology', 'spl', 'jobs'];
         for (var coll in collections) {
@@ -187,7 +188,6 @@ class NotificationService {
     }
   }
 
-  /// Ensures navigation happens only when the navigator is ready
   void _safeNavigate(WidgetBuilder builder) {
     if (navigatorKey.currentState == null) {
       dev.log("⌛ Navigator not ready, retrying navigation in 1s...");
@@ -210,13 +210,66 @@ class NotificationService {
       enableVibration: true,
     );
 
+    const AndroidNotificationChannel prayerChannel = AndroidNotificationChannel(
+      'prayer_channel',
+      'تنبيهات الأذان',
+      description: 'تنبيهات مواقيت الصلاة',
+      importance: Importance.max,
+      playSound: true,
+      sound: RawResourceAndroidNotificationSound('allahu_akbar_short'),
+      enableVibration: true,
+    );
+
     final androidImplementation =
         flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
 
     if (androidImplementation != null) {
       await androidImplementation.createNotificationChannel(channel);
+      await androidImplementation.createNotificationChannel(prayerChannel);
     }
+  }
+
+  Future<void> schedulePrayerNotification({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime scheduledDate,
+  }) async {
+    final tz.TZDateTime scheduledAt = tz.TZDateTime.from(scheduledDate, tz.local);
+    
+    if (scheduledAt.isBefore(tz.TZDateTime.now(tz.local))) return;
+
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      id,
+      title,
+      body,
+      scheduledAt,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'prayer_channel',
+          'تنبيهات الأذان',
+          channelDescription: 'تنبيهات مواقيت الصلاة',
+          importance: Importance.max,
+          priority: Priority.high,
+          playSound: true,
+          sound: RawResourceAndroidNotificationSound('allahu_akbar_short'),
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+          sound: 'allahu_akbar_short.mp3',
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+    );
+  }
+
+  Future<void> cancelAllNotifications() async {
+    await flutterLocalNotificationsPlugin.cancelAll();
   }
 
   Future<bool> _requestPermissions() async {
@@ -330,14 +383,11 @@ class NotificationService {
     }
   }
 
-  // --- Firebase Cloud Messaging ---
-
   Future<void> _initFirebaseMessaging() async {
     fcm.FirebaseMessaging messaging = fcm.FirebaseMessaging.instance;
 
     fcm.FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-    // Initial permissions check
     final settings = await messaging.getNotificationSettings();
     if (settings.authorizationStatus == fcm.AuthorizationStatus.authorized) {
       await subscribeToTopics();
@@ -345,16 +395,29 @@ class NotificationService {
       dev.log('FCM Token: $token');
     }
 
-    // Handle background-to-foreground launch (App was in background, not terminated)
     fcm.FirebaseMessaging.onMessageOpenedApp.listen((fcm.RemoteMessage message) {
       dev.log("🔔 FCM message opened app (Background): ${message.messageId}");
       handleDeepLink(message.data);
     });
 
-    // Handle foreground messages
     fcm.FirebaseMessaging.onMessage.listen((fcm.RemoteMessage message) {
       dev.log('🔔 FCM message received in foreground: ${message.messageId}');
       _handleFcmMessage(message);
+
+      if (navigatorKey.currentContext != null) {
+        final context = navigatorKey.currentContext!;
+        final collection = message.data['collection'];
+        
+        if (collection == 'news' || collection == null) {
+          context.read<NewsCubit>().fetchArticles(limit: 10, isRefresh: true);
+        } else if (collection == 'technology') {
+          context.read<TechNewsCubit>().fetchArticles(limit: 10, isRefresh: true);
+        } else if (collection == 'jobs') {
+          context.read<JobsCubit>().fetchJobs(limit: 10, isRefresh: true);
+        } else if (collection == 'spl') {
+          context.read<SportsCubit>().init();
+        }
+      }
 
       if (message.notification != null) {
         _showForegroundNotification(message.notification!, message.data);

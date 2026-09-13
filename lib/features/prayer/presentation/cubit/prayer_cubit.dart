@@ -6,6 +6,7 @@ import '../../data/repositories/prayer_repository_impl.dart';
 import '../../data/services/prayer_service.dart';
 import 'prayer_state.dart';
 import '../../../../core/constants/saudi_cities.dart';
+import '../../../../core/services/notification_service.dart';
 
 class PrayerCubit extends Cubit<PrayerState> {
   final PrayerRepositoryImpl _repository = PrayerRepositoryImpl(PrayerService());
@@ -90,6 +91,32 @@ class PrayerCubit extends Cubit<PrayerState> {
       remainingTime: remaining,
       cityName: cityName,
     ));
+
+    // Schedule notifications for today's prayers
+    _scheduleNotifications(coords, adhanTimes);
+  }
+
+  Future<void> _scheduleNotifications(Coordinates coords, PrayerTimes prayerTimes) async {
+    final notificationService = NotificationService();
+    // In a production app, we'd use specific IDs to avoid canceling other notifications.
+    // For now, let's assume prayer IDs are 100-105.
+    
+    final List<Map<String, dynamic>> prayersToSchedule = [
+      {'id': 100, 'name': 'الفجر', 'time': prayerTimes.fajr},
+      {'id': 101, 'name': 'الظهر', 'time': prayerTimes.dhuhr},
+      {'id': 102, 'name': 'العصر', 'time': prayerTimes.asr},
+      {'id': 103, 'name': 'المغرب', 'time': prayerTimes.maghrib},
+      {'id': 104, 'name': 'العشاء', 'time': prayerTimes.isha},
+    ];
+
+    for (var prayer in prayersToSchedule) {
+      await notificationService.schedulePrayerNotification(
+        id: prayer['id'],
+        title: 'حان الآن وقت صلاة ${prayer['name']}',
+        body: 'الله أكبر، الله أكبر. حان وقت الصلاة حسب توقيتك المحلي.',
+        scheduledDate: prayer['time'],
+      );
+    }
   }
 
   Future<void> _updateRemainingTime() async {

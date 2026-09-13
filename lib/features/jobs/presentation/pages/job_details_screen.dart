@@ -2,23 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:share_plus/share_plus.dart';
 import 'dart:io';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../domain/entities/article.dart';
+import '../../domain/entities/job.dart';
 import '../../../../core/widgets/app_video_player.dart';
 import '../../../../core/widgets/app_article_image.dart';
-import '../../data/repositories/news_repository_impl.dart';
-import '../widgets/small_news_card.dart';
-import '../cubit/favorites_cubit.dart';
-import '../cubit/favorites_state.dart';
+import '../../data/repositories/job_repository_impl.dart';
+import '../widgets/job_card.dart';
 
-class ArticleDetailsPage extends StatelessWidget {
-  final Article article;
+class JobDetailsScreen extends StatelessWidget {
+  final Job job;
 
-  const ArticleDetailsPage({super.key, required this.article});
+  const JobDetailsScreen({super.key, required this.job});
 
-  void _shareArticle(BuildContext context) {
-    final String text = "${article.title}\n\n${article.excerpt}\n\n"
-        "تابع المزيد عبر تطبيق أخبار السعودية:\n"
+  void _shareJob(BuildContext context) {
+    final String text = "${job.title}\n\n${job.description}\n\n"
+        "تابع المزيد من الوظائف عبر تطبيق أخبار السعودية:\n"
         "${Platform.isAndroid ? 'https://play.google.com/store/apps/details?id=com.saudi.news' : 'https://apps.apple.com/app/id123456789'}";
     
     SharePlus.instance.share(ShareParams(text: text));
@@ -28,7 +25,7 @@ class ArticleDetailsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final saudiGreen = const Color(0xFF006C35);
-    final repository = NewsRepositoryImpl();
+    final repository = JobRepositoryImpl();
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -37,9 +34,8 @@ class ArticleDetailsPage extends StatelessWidget {
         body: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
-            // Professional Sticky Header with Background
             SliverAppBar(
-              expandedHeight: article.videoUrl != null ? 350 : 500, 
+              expandedHeight: job.videoUrl != null ? 350 : 500, 
               pinned: true,
               stretch: true,
               backgroundColor: isDark ? const Color(0xFF0D1117) : saudiGreen,
@@ -56,30 +52,11 @@ class ArticleDetailsPage extends StatelessWidget {
               actions: [
                 Padding(
                   padding: const EdgeInsets.all(8.0),
-                  child: BlocBuilder<FavoritesCubit, FavoritesState>(
-                    builder: (context, state) {
-                      final isFavorite = state.favoriteIds.contains(article.id);
-                      return CircleAvatar(
-                        backgroundColor: Colors.black.withOpacity(0.4),
-                        child: IconButton(
-                          icon: Icon(
-                            isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color: isFavorite ? const Color(0xFFDC2626) : Colors.white,
-                            size: 20,
-                          ),
-                          onPressed: () => context.read<FavoritesCubit>().toggleFavorite(article),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
                   child: CircleAvatar(
                     backgroundColor: Colors.black.withOpacity(0.4),
                     child: IconButton(
                       icon: const Icon(Icons.share_outlined, color: Colors.white, size: 20),
-                      onPressed: () => _shareArticle(context),
+                      onPressed: () => _shareJob(context),
                     ),
                   ),
                 ),
@@ -90,22 +67,29 @@ class ArticleDetailsPage extends StatelessWidget {
                 background: Stack(
                   fit: StackFit.expand,
                   children: [
-                    if (article.videoUrl != null)
+                    if (job.videoUrl != null)
                       AppVideoPlayer(
-                        key: ValueKey(article.videoUrl),
-                        videoUrl: article.videoUrl!,
-                        thumbnailUrl: article.img,
+                        key: ValueKey(job.videoUrl),
+                        videoUrl: job.videoUrl!,
+                        thumbnailUrl: job.logo,
+                      )
+                    else if (job.mediaUrls.isNotEmpty)
+                      Hero(
+                        tag: 'job_${job.id}',
+                        child: AppArticleImage(
+                          imageUrl: job.mediaUrls.first,
+                          fit: BoxFit.contain, 
+                        ),
                       )
                     else
                       Hero(
-                        tag: 'article_${article.id}',
-                        child: AppArticleImage(
-                          imageUrl: article.img,
-                          fit: BoxFit.contain, 
+                        tag: 'job_${job.id}',
+                        child: Center(
+                          child: Icon(Icons.business, size: 100, color: Colors.white.withOpacity(0.5)),
                         ),
                       ),
                     
-                    if (article.videoUrl == null)
+                    if (job.videoUrl == null)
                       const IgnorePointer(
                         child: DecoratedBox(
                           decoration: BoxDecoration(
@@ -125,14 +109,12 @@ class ArticleDetailsPage extends StatelessWidget {
               ),
             ),
 
-            // Content Area
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Professional Metadata Row
                     Row(
                       children: [
                         Container(
@@ -142,7 +124,7 @@ class ArticleDetailsPage extends StatelessWidget {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            article.category,
+                            job.category,
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
@@ -165,7 +147,7 @@ class ArticleDetailsPage extends StatelessWidget {
                               const Icon(Icons.access_time, size: 14, color: Color(0xFF9CA3AF)),
                               const SizedBox(width: 6),
                               Text(
-                                intl.DateFormat('d MMMM yyyy - hh:mm a', 'ar').format(article.createdAt),
+                                intl.DateFormat('d MMMM yyyy - hh:mm a', 'ar').format(job.createdAt),
                                 style: TextStyle(
                                   color: isDark ? const Color(0xFFD1D5DB) : const Color(0xFF4B5563),
                                   fontSize: 11,
@@ -179,9 +161,8 @@ class ArticleDetailsPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
 
-                    // Headline - No Trimming, Full text allowed to wrap
                     Text(
-                      article.excerpt, 
+                      job.title, 
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
@@ -190,22 +171,20 @@ class ArticleDetailsPage extends StatelessWidget {
                         letterSpacing: -0.2,
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
 
-                    // Refined Divider
-                    Container(
-                      width: 60,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF006C35),
-                        borderRadius: BorderRadius.circular(2),
+                    // Description text (Replaces specific rows)
+                    Text(
+                      job.description,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: isDark ? Colors.grey[300] : Colors.black87,
+                        height: 1.6,
                       ),
                     ),
-                    const SizedBox(height: 32),
 
                     const SizedBox(height: 48),
 
-                    // More News Section
                     Row(
                       children: [
                         Container(
@@ -218,7 +197,7 @@ class ArticleDetailsPage extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          "أخبار أخرى قد تهمك",
+                          "وظائف أخرى قد تهمك",
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -228,17 +207,17 @@ class ArticleDetailsPage extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    FutureBuilder<List<Article>>(
-                      future: repository.getNews(limit: 5),
+                    FutureBuilder<List<Job>>(
+                      future: repository.getJobs(limit: 5),
                       builder: (context, snapshot) {
                         if (!snapshot.hasData) return const SizedBox.shrink();
                         
-                        final moreNews = snapshot.data!
-                            .where((a) => a.id != article.id)
+                        final moreJobs = snapshot.data!
+                            .where((j) => j.id != job.id)
                             .toList();
 
                         return Column(
-                          children: moreNews.map((a) => SmallNewsCard(article: a)).toList(),
+                          children: moreJobs.map((j) => JobCard(job: j)).toList(),
                         );
                       },
                     ),

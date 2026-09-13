@@ -1,12 +1,9 @@
 class Job {
   final String id;
   final String title;
-  final String company;
-  final String city;
-  final String type;
-  final String field;
-  final String experience;
-  final String salary;
+  final String description;
+  final String author;
+  final String category;
   final DateTime createdAt;
   final String twitterDate;
   final String logo;
@@ -20,12 +17,9 @@ class Job {
   const Job({
     required this.id,
     required this.title,
-    required this.company,
-    required this.city,
-    required this.type,
-    required this.field,
-    required this.experience,
-    required this.salary,
+    required this.description,
+    required this.author,
+    required this.category,
     required this.createdAt,
     required this.twitterDate,
     required this.logo,

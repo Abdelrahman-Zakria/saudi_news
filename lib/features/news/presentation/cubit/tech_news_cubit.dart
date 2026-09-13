@@ -1,5 +1,5 @@
 import 'news_cubit.dart';
 
 class TechNewsCubit extends NewsCubit {
-  TechNewsCubit() : super(collection: 'technology');
+  TechNewsCubit() : super(baseCollection: 'technology');
 }

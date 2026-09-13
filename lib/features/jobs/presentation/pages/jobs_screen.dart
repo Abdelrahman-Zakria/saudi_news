@@ -15,8 +15,6 @@ class _JobsScreenState extends State<JobsScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  final List<String> _cities = ["الكل", "الرياض", "جدة", "الدمام", "مكة", "المدينة"];
-
   @override
   void initState() {
     super.initState();
@@ -41,8 +39,7 @@ class _JobsScreenState extends State<JobsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return BlocBuilder<JobsCubit, JobsState>(
       builder: (context, state) {
@@ -51,9 +48,12 @@ class _JobsScreenState extends State<JobsScreen> {
           child: Column(
             children: [
               _buildSearchBar(context, isDark),
-              _buildCityFilter(context, isDark, state),
               Expanded(
-                child: _buildJobsList(state),
+                child: RefreshIndicator(
+                  color: const Color(0xFF006C35),
+                  onRefresh: () => context.read<JobsCubit>().fetchJobs(limit: 10, isRefresh: true),
+                  child: _buildJobsList(state),
+                ),
               ),
             ],
           ),
@@ -94,41 +94,8 @@ class _JobsScreenState extends State<JobsScreen> {
     );
   }
 
-  Widget _buildCityFilter(BuildContext context, bool isDark, JobsState state) {
-    final String activeCity = state is JobsLoaded ? state.activeCity : "الكل";
-
-    return SizedBox(
-      height: 40,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        itemCount: _cities.length,
-        itemBuilder: (context, index) {
-          final city = _cities[index];
-          final isSelected = activeCity == city;
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: ChoiceChip(
-              label: Text(city),
-              selected: isSelected,
-              onSelected: (selected) {
-                context.read<JobsCubit>().changeCity(city);
-              },
-              selectedColor: const Color(0xFF006C35),
-              labelStyle: TextStyle(
-                color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
-                fontSize: 12,
-              ),
-              backgroundColor: isDark ? const Color(0xFF1F2937) : Colors.grey[200],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
   Widget _buildJobsList(JobsState state) {
-    if (state is JobsLoading) {
+    if (state is JobsLoading && state is! JobsLoaded) {
       return const Center(child: CircularProgressIndicator(color: Color(0xFF006C35)));
     }
 
@@ -138,20 +105,26 @@ class _JobsScreenState extends State<JobsScreen> {
 
     if (state is JobsLoaded) {
       if (state.filteredJobs.isEmpty) {
-        return const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text("💼", style: TextStyle(fontSize: 48)),
-              SizedBox(height: 16),
-              Text("لا توجد وظائف مطابقة للبحث حالياً", style: TextStyle(color: Color(0xFF9CA3AF))),
-            ],
-          ),
+        return ListView( // Wrap in ListView to allow pull-to-refresh on empty state
+          children: [
+            SizedBox(height: MediaQuery.of(context).size.height * 0.3),
+            const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text("💼", style: TextStyle(fontSize: 48)),
+                  SizedBox(height: 16),
+                  Text("لا توجد وظائف مطابقة للبحث حالياً", style: TextStyle(color: Color(0xFF9CA3AF))),
+                ],
+              ),
+            ),
+          ],
         );
       }
 
       return ListView.builder(
         controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(top: 8, bottom: 80),
         itemCount: state.filteredJobs.length + (state.hasMore ? 1 : 0),
         itemBuilder: (context, index) {

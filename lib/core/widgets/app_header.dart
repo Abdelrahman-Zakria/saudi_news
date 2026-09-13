@@ -4,12 +4,14 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final bool showBack;
   final VoidCallback? onBack;
+  final VoidCallback? onLogoTap;
 
   const AppHeader({
     super.key,
     required this.title,
     this.showBack = false,
     this.onBack,
+    this.onLogoTap,
   });
 
   @override
@@ -60,15 +62,18 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                 ),
               ),
             ),
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: saudiGreen,
-              borderRadius: BorderRadius.circular(8),
+          GestureDetector(
+            onTap: onLogoTap,
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: saudiGreen,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              alignment: Alignment.center,
+              child: Image.asset('assets/latest_logo.jpeg'),
             ),
-            alignment: Alignment.center,
-            child: Image.asset('assets/logo.jpeg'),
           ),
           const SizedBox(width: 8),
           Expanded(

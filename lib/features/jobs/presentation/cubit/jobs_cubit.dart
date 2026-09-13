@@ -6,94 +6,73 @@ import '../../domain/entities/job.dart';
 
 class JobsCubit extends Cubit<JobsState> {
   final JobRepositoryImpl _repository = JobRepositoryImpl();
-  StreamSubscription? _subscription;
 
   JobsCubit() : super(JobsInitial());
 
-  void init() {
-    _startSubscription(limit: 10);
+  Future<void> init() async {
+    await fetchJobs(limit: 10);
   }
 
-  void _startSubscription({required int limit}) {
-    if (state is JobsInitial) {
+  Future<void> fetchJobs({required int limit, bool isRefresh = false}) async {
+    if (state is JobsLoading && !isRefresh) return;
+
+    if (state is JobsInitial || isRefresh) {
       emit(JobsLoading());
     }
 
-    _subscription?.cancel();
-    _subscription = _repository.getJobsStream(limit: limit).listen(
-      (jobs) {
-        _updateJobs(jobs, limit);
-      },
-      onError: (error) {
-        emit(JobsError(error.toString()));
-      },
-    );
+    try {
+      final jobs = await _repository.getJobs(limit: limit);
+      _updateJobs(jobs, limit);
+    } catch (error) {
+      emit(JobsError(error.toString()));
+    }
   }
 
   void _updateJobs(List<Job> jobs, int limit) {
     String currentSearch = "";
-    String currentCity = "الكل";
     
     if (state is JobsLoaded) {
       currentSearch = (state as JobsLoaded).searchQuery;
-      currentCity = (state as JobsLoaded).activeCity;
     }
 
-    final filtered = _applyFilters(jobs, currentSearch, currentCity);
+    final filtered = _applyFilters(jobs, currentSearch);
 
     emit(JobsLoaded(
       allJobs: jobs,
       filteredJobs: filtered,
       searchQuery: currentSearch,
-      activeCity: currentCity,
       currentLimit: limit,
       hasMore: jobs.length >= limit,
     ));
   }
 
-  List<Job> _applyFilters(List<Job> jobs, String search, String city) {
+  List<Job> _applyFilters(List<Job> jobs, String search) {
     var filtered = jobs;
-    if (city != "الكل") {
-      filtered = filtered.where((j) => j.city == city).toList();
-    }
     if (search.isNotEmpty) {
+      final lowercaseSearch = search.toLowerCase();
       filtered = filtered.where((j) => 
-        j.title.toLowerCase().contains(search) || 
-        j.company.toLowerCase().contains(search)
+        j.title.toLowerCase().contains(lowercaseSearch) || 
+        j.author.toLowerCase().contains(lowercaseSearch) ||
+        j.description.toLowerCase().contains(lowercaseSearch)
       ).toList();
     }
     return filtered;
   }
 
-  void loadMore() {
+  Future<void> loadMore() async {
     if (state is JobsLoaded) {
       final s = state as JobsLoaded;
       if (s.hasMore) {
-        _startSubscription(limit: s.currentLimit + 10);
+        await fetchJobs(limit: s.currentLimit + 10);
       }
     }
   }
 
-  void searchJobs(String query) {
+  Future<void> searchJobs(String query) async {
     if (state is JobsLoaded) {
       final s = state as JobsLoaded;
-      _startSubscription(limit: 10);
       emit(s.copyWith(searchQuery: query));
+      await fetchJobs(limit: 10);
     }
-  }
-
-  void changeCity(String city) {
-    if (state is JobsLoaded) {
-      final s = state as JobsLoaded;
-      final String nextCity = (s.activeCity == city) ? "الكل" : city;
-      _startSubscription(limit: 10);
-      emit(s.copyWith(activeCity: nextCity));
-    }
-  }
-
-  @override
-  Future<void> close() {
-    _subscription?.cancel();
-    return super.close();
   }
 }

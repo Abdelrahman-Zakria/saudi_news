@@ -5,12 +5,9 @@ class JobModel extends Job {
   const JobModel({
     required super.id,
     required super.title,
-    required super.company,
-    required super.city,
-    required super.type,
-    required super.field,
-    required super.experience,
-    required super.salary,
+    required super.description,
+    required super.author,
+    required super.category,
     required super.createdAt,
     required super.twitterDate,
     required super.logo,
@@ -72,7 +69,6 @@ class JobModel extends Job {
       title = "${title.substring(0, 80)}...";
     }
 
-
     if (title.length < 10 && cleanText.length > 10) {
       title = cleanText.substring(0, cleanText.length > 50 ? 50 : cleanText.length).replaceAll('\n', ' ');
     }
@@ -80,18 +76,14 @@ class JobModel extends Job {
     final createdAt = (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now();
     final twitterDate = data['createdAt'] as String? ?? '';
     
-    // Mapping logic for Jobs UI
     final isUrgent = cleanText.contains('عاجل') || (data['category']?.toString().contains('عاجل') ?? false);
     
     return JobModel(
       id: data['tweetId'] as String? ?? doc.id,
       title: title.trim(),
-      company: data['author'] as String? ?? 'شركة سعودية',
-      city: 'الرياض', 
-      type: 'دوام كامل',
-      field: data['category'] as String? ?? 'وظائف',
-      experience: 'خبرة متوسطة',
-      salary: 'حسب المؤهلات',
+      description: cleanText,
+      author: data['author'] as String? ?? 'شركة سعودية',
+      category: data['category'] as String? ?? 'وظائف',
       createdAt: createdAt,
       twitterDate: twitterDate,
       logo: mediaUrls.isNotEmpty ? mediaUrls.first : '💼',

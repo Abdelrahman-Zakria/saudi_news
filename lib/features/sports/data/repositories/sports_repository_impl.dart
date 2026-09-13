@@ -11,15 +11,14 @@ import 'package:intl/intl.dart';
 class SportsRepositoryImpl {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  Stream<List<Article>> getSportsUpdatesStream({int limit = 10}) {
-    return _firestore
+  Future<List<Article>> getSportsUpdates({int limit = 10}) async {
+    final snapshot = await _firestore
         .collection('spl')
         .orderBy('timestamp', descending: true)
         .limit(limit)
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) => ArticleModel.fromFirestore(doc)).toList();
-    });
+        .get();
+        
+    return snapshot.docs.map((doc) => ArticleModel.fromFirestore(doc)).toList();
   }
 
   Future<List<Match>> getMatches() async {

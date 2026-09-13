@@ -6,31 +6,30 @@ import '../../domain/entities/article.dart';
 
 class NewsCubit extends Cubit<NewsState> {
   final NewsRepositoryImpl _repository = NewsRepositoryImpl();
-  final String collection;
-  StreamSubscription? _subscription;
+  final String baseCollection;
+  String _activeCollection;
 
-  NewsCubit({this.collection = 'news'}) : super(NewsInitial());
+  NewsCubit({this.baseCollection = 'news'}) 
+      : _activeCollection = baseCollection,
+        super(NewsInitial());
 
-  void init() {
-    _startSubscription(limit: 10);
+  Future<void> init() async {
+    await fetchArticles(limit: 50); // Fetch more to ensure we have enough for filtering
   }
 
-  void _startSubscription({required int limit}) {
-    if (state is NewsLoading) return;
+  Future<void> fetchArticles({required int limit, bool isRefresh = false}) async {
+    if (state is NewsLoading && !isRefresh) return;
     
-    if (state is NewsInitial) {
+    if (state is NewsInitial || isRefresh) {
       emit(NewsLoading());
     }
 
-    _subscription?.cancel();
-    _subscription = _repository.getNewsStream(limit: limit, collection: collection).listen(
-      (articles) {
-        _updateArticles(articles, limit);
-      },
-      onError: (error) {
-        emit(NewsError(error.toString()));
-      },
-    );
+    try {
+      final articles = await _repository.getNews(limit: limit, collection: _activeCollection);
+      _updateArticles(articles, limit);
+    } catch (error) {
+      emit(NewsError(error.toString()));
+    }
   }
 
   void _updateArticles(List<Article> articles, int limit) {
@@ -43,9 +42,11 @@ class NewsCubit extends Cubit<NewsState> {
     }
 
     final now = DateTime.now();
+    
+    // Breaking news for ticker: Any item marked "عاجل" in last 24h
     final breaking = articles.where((a) {
-      final difference = now.difference(a.createdAt).inHours;
-      return a.excerpt.contains('عاجل') && difference < 24;
+      final diff = now.difference(a.createdAt.toLocal()).inHours;
+      return (a.excerpt.contains('عاجل') || a.category.contains('عاجل')) && diff < 24;
     }).toList();
 
     final filtered = _applyFilters(articles, currentCategory, currentSearch);
@@ -62,70 +63,83 @@ class NewsCubit extends Cubit<NewsState> {
   }
 
   List<Article> _applyFilters(List<Article> articles, String category, String search) {
-    var filtered = articles;
+    var filtered = List<Article>.from(articles);
+    final now = DateTime.now();
     
-    if (category != "all") {
+    if (category != "all" && category != 'تكنولوجيا' && category != 'رياضة' && category != 'وظائف') {
       filtered = filtered.where((a) {
         final artCat = a.category.toLowerCase();
+        final text = a.excerpt.toLowerCase();
+        final title = a.title.toLowerCase();
+        
         switch (category) {
-          case 'سياسة':
-            return artCat == 'politics' || artCat.contains('سياسة') || artCat == 'ksa';
-          case 'اقتصاد':
-            return artCat == 'economy' || artCat.contains('اقتصاد');
-          case 'مجتمع':
-            return artCat == 'society' || artCat.contains('مجتمع');
-          case 'تكنولوجيا':
-            return artCat == 'tech' || artCat.contains('تكنولوجيا') || artCat.contains('تقنية');
-          case 'رياضة':
-            return artCat == 'sports' || artCat.contains('رياضة');
-          case 'عاجل':
-            return artCat == 'breaking' || artCat.contains('عاجل');
           case 'عام':
             return artCat == 'general' || artCat.contains('عام');
+          case 'عاجل':
+            // Robust check for "Breaking" articles in the last 12 hours
+            // Using 12 hours instead of 3 to account for potential server/local clock drift
+            final diffInHours = now.difference(a.createdAt.toLocal()).inHours;
+            final isUrgent = artCat.contains('عاجل') || text.contains('عاجل') || title.contains('عاجل');
+            return isUrgent && diffInHours < 12;
           default:
             return artCat == category.toLowerCase() || artCat.contains(category);
         }
       }).toList();
+    } else if (category == 'عاجل') {
+      // Fallback for cases where collection logic might skip the switch
+      filtered = filtered.where((a) {
+        final diffInHours = now.difference(a.createdAt.toLocal()).inHours;
+        final isUrgent = a.category.contains('عاجل') || a.excerpt.contains('عاجل') || a.title.contains('عاجل');
+        return isUrgent && diffInHours < 12;
+      }).toList();
     }
 
     if (search.isNotEmpty) {
+      final query = search.toLowerCase();
       filtered = filtered.where((a) {
-        return a.title.toLowerCase().contains(search) ||
-               a.excerpt.toLowerCase().contains(search);
+        return a.title.toLowerCase().contains(query) ||
+               a.excerpt.toLowerCase().contains(query);
       }).toList();
     }
     return filtered;
   }
 
-  void loadMore() {
+  Future<void> loadMore() async {
     if (state is NewsLoaded) {
       final s = state as NewsLoaded;
       if (s.hasMore) {
-        _startSubscription(limit: s.currentLimit + 10);
+        await fetchArticles(limit: s.currentLimit + 20);
       }
     }
   }
 
-  void changeCategory(String categoryId) {
+  Future<void> changeCategory(String categoryId) async {
     if (state is NewsLoaded) {
       final s = state as NewsLoaded;
       final String nextCategory = (s.activeCategory == categoryId) ? "all" : categoryId;
-      _startSubscription(limit: 10); 
+      
+      if (baseCollection == 'news') {
+        if (nextCategory == 'تكنولوجيا') {
+          _activeCollection = 'technology';
+        } else if (nextCategory == 'رياضة') {
+          _activeCollection = 'spl';
+        } else if (nextCategory == 'وظائف') {
+          _activeCollection = 'jobs';
+        } else {
+          _activeCollection = 'news';
+        }
+      }
+
       emit(s.copyWith(activeCategory: nextCategory));
+      await fetchArticles(limit: 50); 
     }
   }
 
-  void searchNews(String query) {
+  Future<void> searchNews(String query) async {
     if (state is NewsLoaded) {
       final s = state as NewsLoaded;
-      _startSubscription(limit: 10);
       emit(s.copyWith(searchQuery: query));
+      await fetchArticles(limit: 30);
     }
-  }
-
-  @override
-  Future<void> close() {
-    _subscription?.cancel();
-    return super.close();
   }
 }

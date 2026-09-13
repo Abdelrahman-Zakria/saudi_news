@@ -25,9 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<CategoryItem> _sections = [
     CategoryItem(id: "all", label: "الكل"),
-    CategoryItem(id: "سياسة", label: "⚖️ سياسة"),
-    CategoryItem(id: "اقتصاد", label: "💼 اقتصاد"),
-    CategoryItem(id: "مجتمع", label: "👥 مجتمع"),
+    CategoryItem(id: "وظائف", label: "💼 وظائف"),
     CategoryItem(id: "تكنولوجيا", label: "💻 تكنولوجيا"),
     CategoryItem(id: "رياضة", label: "⚽ رياضة"),
     CategoryItem(id: "عاجل", label: "🚨 عاجل"),
@@ -63,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return BlocBuilder<NewsCubit, NewsState>(
       builder: (context, state) {
-        if (state is NewsLoading) {
+        if (state is NewsLoading && state is! NewsLoaded) {
           return const Center(child: CircularProgressIndicator(color: Color(0xFF006C35)));
         }
 
@@ -77,37 +75,42 @@ class _HomeScreenState extends State<HomeScreen> {
 
           return Directionality(
             textDirection: TextDirection.rtl,
-            child: ListView(
-              controller: _scrollController,
-              padding: EdgeInsets.zero,
-              children: [
-                _buildSearchBar(context),
-                
-                if (isSearching)
-                  _buildSearchResults(state.filteredArticles, isDark, state.searchQuery)
-                else ...[
-                  BreakingTicker(articles: state.breakingNews),
-                  if (featured != null) _buildFeaturedArticle(featured),
+            child: RefreshIndicator(
+              color: const Color(0xFF006C35),
+              onRefresh: () => context.read<NewsCubit>().fetchArticles(limit: 10, isRefresh: true),
+              child: ListView(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.zero,
+                children: [
+                  _buildSearchBar(context),
                   
-                  CategoryPills(
-                    categories: _sections,
-                    activeCategoryId: state.activeCategory,
-                    onCategorySelected: (id) {
-                      context.read<NewsCubit>().changeCategory(id);
-                    },
-                  ),
-
-                  _buildListContent(state, isDark, theme),
-                  
-                  if (state.hasMore)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: Center(child: CircularProgressIndicator(color: Color(0xFF006C35))),
+                  if (isSearching)
+                    _buildSearchResults(state.filteredArticles, isDark, state.searchQuery)
+                  else ...[
+                    BreakingTicker(articles: state.breakingNews),
+                    if (featured != null) _buildFeaturedArticle(featured),
+                    
+                    CategoryPills(
+                      categories: _sections,
+                      activeCategoryId: state.activeCategory,
+                      onCategorySelected: (id) {
+                        context.read<NewsCubit>().changeCategory(id);
+                      },
                     ),
+
+                    _buildListContent(state, isDark, theme),
+                    
+                    if (state.hasMore)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20),
+                        child: Center(child: CircularProgressIndicator(color: Color(0xFF006C35))),
+                      ),
+                  ],
+                  
+                  const SizedBox(height: 80),
                 ],
-                
-                const SizedBox(height: 80),
-              ],
+              ),
             ),
           );
         }
@@ -227,7 +230,7 @@ class _HomeScreenState extends State<HomeScreen> {
             left: 12,
             child: BlocBuilder<FavoritesCubit, FavoritesState>(
               builder: (context, state) {
-                final isFavorite = context.read<FavoritesCubit>().isFavorite(featured.id);
+                final isFavorite = state.favoriteIds.contains(featured.id);
                 return GestureDetector(
                   onTap: () => context.read<FavoritesCubit>().toggleFavorite(featured),
                   child: Container(
@@ -235,18 +238,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     height: 32,
                     decoration: BoxDecoration(
                       color: isFavorite
-                          ? const Color(0xFF006C35)
+                          ? const Color(0xFFDC2626)
                           : Colors.white.withValues(alpha:0.8),
                       shape: BoxShape.circle,
                     ),
                     child: Center(
-                      child: Text(
-                        isFavorite ? "♥" : "♡",
-                        style: TextStyle(
-                          color: isFavorite ? Colors.white : const Color(0xFF4B5563),
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      child: Icon(
+                        isFavorite ? Icons.favorite : Icons.favorite_border,
+                        color: isFavorite ? Colors.white : const Color(0xFF4B5563),
+                        size: 18,
                       ),
                     ),
                   ),

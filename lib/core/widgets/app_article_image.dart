@@ -35,7 +35,7 @@ class AppArticleImage extends StatelessWidget {
       errorBuilder: (context, error, stackTrace) {
         return errorWidget ??
             Image.asset(
-              'assets/logo.jpeg',
+              'assets/latest_logo.jpeg',
               width: width,
               height: height,
               fit: fit,
