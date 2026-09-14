@@ -50,11 +50,6 @@ post_install do |installer|
         'PERMISSION_CONTACTS=1',
         'PERMISSION_MICROPHONE=1'
       ]
-
-      # Disable module definition for google_mobile_ads to bypass modular header restrictions
-      if target.name.include? 'google_mobile_ads'
-        config.build_settings['DEFINES_MODULE'] = 'NO'
-      end
     end
   end
 end
