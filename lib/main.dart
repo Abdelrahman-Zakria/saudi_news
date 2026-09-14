@@ -20,6 +20,7 @@ import 'features/directory/presentation/cubit/directory_cubit.dart';
 import 'features/news/presentation/cubit/favorites_cubit.dart';
 import 'features/settings/presentation/cubit/notifications_cubit.dart';
 import 'features/prayer/presentation/cubit/prayer_cubit.dart';
+import 'features/splash/presentation/pages/splash_screen.dart';
 import 'core/services/ad_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -98,18 +99,27 @@ class _MyAppState extends State<MyApp> {
               Locale('ar', 'SA'),
             ],
             locale: const Locale('ar', 'SA'),
-            home: BlocBuilder<ConnectivityCubit, ConnectivityStatus>(
-              builder: (context, connectivityStatus) {
-                if (connectivityStatus == ConnectivityStatus.disconnected) {
-                  return const NoInternetScreen();
-                }
-                return const MainScreen();
-              },
-            ),
+            home: const SplashScreen(nextScreen: AppGate()),
             debugShowCheckedModeBanner: false,
           );
         },
       ),
+    );
+  }
+}
+
+class AppGate extends StatelessWidget {
+  const AppGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ConnectivityCubit, ConnectivityStatus>(
+      builder: (context, connectivityStatus) {
+        if (connectivityStatus == ConnectivityStatus.disconnected) {
+          return const NoInternetScreen();
+        }
+        return const MainScreen();
+      },
     );
   }
 }

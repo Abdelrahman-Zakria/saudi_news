@@ -2,13 +2,20 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'iap_service.dart';
 
 /// AdMob test ad configuration. Replace these IDs with production IDs before release.
 class AdIds {
   static String get banner =>
       _isAndroid ? 'ca-app-pub-3940256099942544/6300978111' :
       'ca-app-pub-6520884181780729/1519042280';
+
+  static String get directoryNative =>
+      _isAndroid ? 'ca-app-pub-6520884181780729/6346102790' :
+      'ca-app-pub-6520884181780729/1277608949';
+
   static String get interstitial =>
       _isAndroid ? 'ca-app-pub-3940256099942544/1033173712' :
       'ca-app-pub-6520884181780729/4340646741';
@@ -32,6 +39,10 @@ class AdService with WidgetsBindingObserver {
 
   Future<void> initialize() async {
     if (_initialized) return;
+    
+    // Check if user is PRO (Removed Ads)
+    if (IAPService().isPro) return;
+
     _initialized = true;
     WidgetsBinding.instance.addObserver(this);
     await MobileAds.instance.initialize();
@@ -44,13 +55,19 @@ class AdService with WidgetsBindingObserver {
       _loadAppOpenAd();
     });
     // Interstitial once every 30 seconds.
-    _interstitialTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    _interstitialTimer = Timer.periodic(const Duration(seconds: 150), (_) {
       _showInterstitialAd();
       _loadInterstitialAd();
+    });
+
+    // Listen for PRO status changes to stop ads immediately
+    IAPService().proStatusStream.listen((isPro) {
+      if (isPro) dispose();
     });
   }
 
   void _loadAppOpenAd() {
+    if (IAPService().isPro) return;
     if (_appOpenAd != null) return;
     AppOpenAd.load(
       adUnitId: AdIds.appOpen,
@@ -71,6 +88,7 @@ class AdService with WidgetsBindingObserver {
   }
 
   void _loadInterstitialAd() {
+    if (IAPService().isPro) return;
     if (_interstitialAd != null) return;
     InterstitialAd.load(
       adUnitId: AdIds.interstitial,
@@ -83,6 +101,7 @@ class AdService with WidgetsBindingObserver {
   }
 
   void _showAppOpenAd() {
+    if (IAPService().isPro) return;
     if (_isShowingFullScreenAd || _appOpenAd == null) return;
     final ad = _appOpenAd!;
     _appOpenAd = null;
@@ -105,6 +124,7 @@ class AdService with WidgetsBindingObserver {
   }
 
   void _showInterstitialAd() {
+    if (IAPService().isPro) return;
     if (_isShowingFullScreenAd || _interstitialAd == null) return;
     final ad = _interstitialAd!;
     _interstitialAd = null;
@@ -126,6 +146,7 @@ class AdService with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (IAPService().isPro) return;
     _isAppInForeground = state == AppLifecycleState.resumed;
     if (state == AppLifecycleState.resumed) {
       _loadAppOpenAd();
@@ -146,42 +167,138 @@ class AdService with WidgetsBindingObserver {
     _interstitialTimer?.cancel();
     _appOpenAd?.dispose();
     _interstitialAd?.dispose();
+    _appOpenAd = null;
+    _interstitialAd = null;
   }
 }
 
 class AdBanner extends StatefulWidget {
-  const AdBanner({super.key});
+  final String? adUnitId;
+  const AdBanner({super.key, this.adUnitId});
 
   @override
   State<AdBanner> createState() => _AdBannerState();
 }
 
 class _AdBannerState extends State<AdBanner> {
-  late final BannerAd _banner;
+  BannerAd? _banner;
 
   @override
   void initState() {
     super.initState();
+    if (!IAPService().isPro) {
+      _loadBanner();
+    }
+  }
+
+  void _loadBanner() {
     _banner = BannerAd(
-      adUnitId: AdIds.banner,
+      adUnitId: widget.adUnitId ?? AdIds.banner,
       size: AdSize.banner,
       request: const AdRequest(),
-      listener: BannerAdListener(),
+      listener: BannerAdListener(
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+          setState(() {
+            _banner = null;
+          });
+        },
+      ),
     )..load();
   }
 
   @override
   void dispose() {
-    _banner.dispose();
+    _banner?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: _banner.size.width.toDouble(),
-      height: _banner.size.height.toDouble(),
-      child: AdWidget(ad: _banner),
+    return StreamBuilder<bool>(
+      stream: IAPService().proStatusStream,
+      initialData: IAPService().isPro,
+      builder: (context, snapshot) {
+        final isPro = snapshot.data ?? false;
+        if (isPro || _banner == null) return const SizedBox.shrink();
+        
+        return Container(
+          width: _banner!.size.width.toDouble(),
+          height: _banner!.size.height.toDouble(),
+          alignment: Alignment.center,
+          child: AdWidget(ad: _banner!),
+        );
+      },
+    );
+  }
+}
+
+class AdNative extends StatefulWidget {
+  final String? adUnitId;
+  final String factoryId;
+
+  const AdNative({
+    super.key, 
+    this.adUnitId,
+    this.factoryId = 'listTile',
+  });
+
+  @override
+  State<AdNative> createState() => _AdNativeState();
+}
+
+class _AdNativeState extends State<AdNative> {
+  NativeAd? _nativeAd;
+  bool _isAdLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!IAPService().isPro) {
+      _loadAd();
+    }
+  }
+
+  void _loadAd() {
+    _nativeAd = NativeAd(
+      adUnitId: widget.adUnitId ?? AdIds.directoryNative,
+      factoryId: widget.factoryId,
+      request: const AdRequest(),
+      listener: NativeAdListener(
+        onAdLoaded: (ad) {
+          setState(() {
+            _isAdLoaded = true;
+          });
+        },
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+          print('NativeAd failed to load: $error');
+        },
+      ),
+    )..load();
+  }
+
+  @override
+  void dispose() {
+    _nativeAd?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<bool>(
+      stream: IAPService().proStatusStream,
+      initialData: IAPService().isPro,
+      builder: (context, snapshot) {
+        final isPro = snapshot.data ?? false;
+        if (isPro || !_isAdLoaded || _nativeAd == null) return const SizedBox.shrink();
+
+        return Container(
+          height: 150,
+          alignment: Alignment.center,
+          child: AdWidget(ad: _nativeAd!),
+        );
+      },
     );
   }
 }

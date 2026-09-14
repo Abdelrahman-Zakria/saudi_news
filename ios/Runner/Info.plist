@@ -101,7 +101,7 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>نحتاج للوصول إلى الميكروفون لتشغيل المنبهات والتنبيهات الصوتية.</string>
 	<key>NSContactsUsageDescription</key>
-	<string>نحتاج للوصول إلى جهات الاتصال لعرضها في دليل الهاتف والبحث عنها بسهولة.</string>
+	<string>نستخدم جهات الاتصال لتمكينك من معرفة هوية المتصلين، وتحسين نتائج البحث.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 </dict>

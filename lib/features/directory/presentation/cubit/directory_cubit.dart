@@ -22,30 +22,27 @@ class DirectoryCubit extends Cubit<DirectoryState> {
   }
 
   void searchFirestore(String query) {
-    final String currentCategory = state.activeCategory;
     final List<DirectoryContact> localContacts = state.localContacts;
 
     if (_debounce?.isActive ?? false) _debounce?.cancel();
     
     _debounce = Timer(const Duration(milliseconds: 500), () {
-      if (query.isEmpty && currentCategory == "الكل") {
+      if (query.isEmpty) {
         _subscription?.cancel();
-        emit(DirectoryLoaded(localContacts: localContacts, searchQuery: "", activeCategory: "الكل", isSearchView: false));
+        emit(DirectoryLoaded(localContacts: localContacts, searchQuery: "", isSearchView: false));
         return;
       }
 
-      emit(DirectoryLoading(searchQuery: query, activeCategory: currentCategory, localContacts: localContacts, isSearchView: true));
+      emit(DirectoryLoading(searchQuery: query, localContacts: localContacts, isSearchView: true));
 
       _subscription?.cancel();
-      _subscription = _repository.searchFirestoreContacts(query: query, category: currentCategory).listen(
+      _subscription = _repository.searchFirestoreContacts(query: query).listen(
         (results) {
           emit(DirectoryLoaded(
             localContacts: localContacts,
             searchResults: results,
             searchQuery: query,
-            activeCategory: currentCategory,
             isSearchView: true,
-            hasMore: results.length >= 20,
           ));
         },
         onError: (e) => emit(DirectoryError(e.toString(), localContacts: localContacts, isSearchView: true)),
@@ -53,45 +50,38 @@ class DirectoryCubit extends Cubit<DirectoryState> {
     });
   }
 
-  void changeCategory(String category) {
-    final query = state.searchQuery;
-    final nextCategory = (state.activeCategory == category) ? "الكل" : category;
-    _performSearch(query, nextCategory);
-  }
-
-  void _performSearch(String query, String category) {
-    final localContacts = state.localContacts;
+  Future<List<DirectoryContact>> performLookup(String number) async {
+    emit(DirectoryLoading(
+      searchQuery: number, 
+      localContacts: state.localContacts, 
+      isSearchView: true
+    ));
     
-    if (query.isEmpty && category == "الكل") {
-       _subscription?.cancel();
-       emit(DirectoryLoaded(localContacts: localContacts, searchQuery: "", activeCategory: "الكل", isSearchView: false));
-       return;
+    try {
+      final results = await _repository.lookupNumber(number);
+      
+      emit(DirectoryLoaded(
+        localContacts: state.localContacts,
+        searchResults: results,
+        searchQuery: number,
+        isSearchView: true,
+      ));
+      
+      return results;
+    } catch (e) {
+      emit(DirectoryError(e.toString(), 
+        localContacts: state.localContacts, 
+        isSearchView: true
+      ));
+      return [];
     }
-
-    emit(DirectoryLoading(searchQuery: query, activeCategory: category, localContacts: localContacts, isSearchView: true));
-    _subscription?.cancel();
-    _subscription = _repository.searchFirestoreContacts(query: query, category: category).listen(
-      (results) {
-        emit(DirectoryLoaded(
-          localContacts: localContacts,
-          searchResults: results,
-          searchQuery: query,
-          activeCategory: category,
-          isSearchView: true,
-          hasMore: results.length >= 20,
-        ));
-      },
-      onError: (e) => emit(DirectoryError(e.toString(), localContacts: localContacts, isSearchView: true)),
-    );
   }
 
   Future<void> syncUserContacts() async {
     try {
       await _repository.syncLocalContacts();
-      await init(); // Reload local list after sync
-    } catch (e) {
-      // Silently fail
-    }
+      await init(); 
+    } catch (e) {}
   }
 
   @override

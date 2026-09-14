@@ -64,32 +64,74 @@ class _JobsScreenState extends State<JobsScreen> {
 
   Widget _buildSearchBar(BuildContext context, bool isDark) {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Container(
-        height: 50,
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1F2937) : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isDark ? const Color(0xFF374151) : const Color(0xFFE5E7EB)),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: [
-            const Icon(Icons.search, color: Color(0xFF9CA3AF)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                controller: _searchController,
-                textAlign: TextAlign.right,
-                decoration: const InputDecoration(
-                  hintText: "ابحث عن وظيفة، شركة...",
-                  border: InputBorder.none,
-                  hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
-                ),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              height: 48,
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1F2937) : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: isDark ? const Color(0xFF374151) : const Color(0xFFE5E7EB)),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  const Icon(Icons.search, color: Color(0xFF9CA3AF), size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      textAlign: TextAlign.right,
+                      decoration: const InputDecoration(
+                        hintText: "ابحث عن وظيفة، شركة...",
+                        border: InputBorder.none,
+                        hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
+                        isDense: true,
+                      ),
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: () {
+              // Trigger notification permission request
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('سيتم إرسال تنبيهات عند توفر وظائف جديدة 🔔'),
+                  backgroundColor: Color(0xFF006C35),
+                ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF006C35).withValues(alpha:0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF006C35).withValues(alpha:0.3)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.notifications_active_outlined, color: Color(0xFF006C35), size: 16),
+                  SizedBox(width: 4),
+                  Text(
+                    "تفعيل",
+                    style: TextStyle(
+                      color: Color(0xFF006C35),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
