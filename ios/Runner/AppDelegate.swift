@@ -26,9 +26,9 @@ import Firebase
 }
 
 class ListTileNativeAdFactory : NSObject, FLTNativeAdFactory {
-    func createNativeAd(_ nativeAd: GADNativeAd,
+    func createNativeAd(_ nativeAd: NativeAd,
                         customOptions: [AnyHashable : Any]?) -> UIView {
-        let nativeAdView = GADNativeAdView()
+        let nativeAdView = NativeAdView()
 
         // Background
         nativeAdView.backgroundColor = .clear
