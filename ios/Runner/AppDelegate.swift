@@ -16,7 +16,7 @@ import Firebase
 
     GeneratedPluginRegistrant.register(with: self)
 
-    // Register Native Ad Factory with programmatic UI
+    // Register Native Ad Factory
     let listTileFactory = ListTileNativeAdFactory()
     FLTGoogleMobileAdsPlugin.registerNativeAdFactory(
         self, factoryId: "listTile", nativeAdFactory: listTileFactory)
@@ -27,7 +27,7 @@ import Firebase
 
 class ListTileNativeAdFactory : NSObject, FLTNativeAdFactory {
     func createNativeAd(_ nativeAd: NativeAd,
-                        customOptions: [AnyHashable : Any]?) -> UIView {
+                        customOptions: [AnyHashable : Any]?) -> NativeAdView {
         let nativeAdView = NativeAdView()
 
         // Background
