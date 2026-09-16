@@ -10,14 +10,27 @@ import '../../data/repositories/news_repository_impl.dart';
 import '../widgets/small_news_card.dart';
 import '../cubit/favorites_cubit.dart';
 import '../cubit/favorites_state.dart';
+import '../../../../core/services/ad_service.dart';
 
-class ArticleDetailsPage extends StatelessWidget {
+class ArticleDetailsPage extends StatefulWidget {
   final Article article;
 
   const ArticleDetailsPage({super.key, required this.article});
 
+  @override
+  State<ArticleDetailsPage> createState() => _ArticleDetailsPageState();
+}
+
+class _ArticleDetailsPageState extends State<ArticleDetailsPage> {
+  @override
+  void initState() {
+    super.initState();
+    // Show ad when article details is opened
+    AdService().showInterstitialAd();
+  }
+
   void _shareArticle(BuildContext context) {
-    final String text = "${article.title}\n\n${article.excerpt}\n\n"
+    final String text = "${widget.article.title}\n\n${widget.article.excerpt}\n\n"
         "تابع المزيد عبر تطبيق أخبار السعودية:\n"
         "${Platform.isAndroid ? 'https://play.google.com/store/apps/details?id=com.saudi.news' : 'https://apps.apple.com/app/id123456789'}";
     
@@ -39,7 +52,7 @@ class ArticleDetailsPage extends StatelessWidget {
           slivers: [
             // Professional Sticky Header with Background
             SliverAppBar(
-              expandedHeight: article.videoUrl != null ? 350 : 500, 
+              expandedHeight: widget.article.videoUrl != null ? 350 : 500, 
               pinned: true,
               stretch: true,
               backgroundColor: isDark ? const Color(0xFF0D1117) : saudiGreen,
@@ -58,7 +71,7 @@ class ArticleDetailsPage extends StatelessWidget {
                   padding: const EdgeInsets.all(8.0),
                   child: BlocBuilder<FavoritesCubit, FavoritesState>(
                     builder: (context, state) {
-                      final isFavorite = state.favoriteIds.contains(article.id);
+                      final isFavorite = state.favoriteIds.contains(widget.article.id);
                       return CircleAvatar(
                         backgroundColor: Colors.black.withOpacity(0.4),
                         child: IconButton(
@@ -67,7 +80,7 @@ class ArticleDetailsPage extends StatelessWidget {
                             color: isFavorite ? const Color(0xFFDC2626) : Colors.white,
                             size: 20,
                           ),
-                          onPressed: () => context.read<FavoritesCubit>().toggleFavorite(article),
+                          onPressed: () => context.read<FavoritesCubit>().toggleFavorite(widget.article),
                         ),
                       );
                     },
@@ -90,22 +103,22 @@ class ArticleDetailsPage extends StatelessWidget {
                 background: Stack(
                   fit: StackFit.expand,
                   children: [
-                    if (article.videoUrl != null)
+                    if (widget.article.videoUrl != null)
                       AppVideoPlayer(
-                        key: ValueKey(article.videoUrl),
-                        videoUrl: article.videoUrl!,
-                        thumbnailUrl: article.img,
+                        key: ValueKey(widget.article.videoUrl),
+                        videoUrl: widget.article.videoUrl!,
+                        thumbnailUrl: widget.article.img,
                       )
                     else
                       Hero(
-                        tag: 'article_${article.id}',
+                        tag: 'article_${widget.article.id}',
                         child: AppArticleImage(
-                          imageUrl: article.img,
+                          imageUrl: widget.article.img,
                           fit: BoxFit.contain, 
                         ),
                       ),
                     
-                    if (article.videoUrl == null)
+                    if (widget.article.videoUrl == null)
                       const IgnorePointer(
                         child: DecoratedBox(
                           decoration: BoxDecoration(
@@ -142,7 +155,7 @@ class ArticleDetailsPage extends StatelessWidget {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            article.category,
+                            widget.article.category,
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
@@ -165,7 +178,7 @@ class ArticleDetailsPage extends StatelessWidget {
                               const Icon(Icons.access_time, size: 14, color: Color(0xFF9CA3AF)),
                               const SizedBox(width: 6),
                               Text(
-                                intl.DateFormat('d MMMM yyyy - hh:mm a', 'ar').format(article.createdAt),
+                                intl.DateFormat('d MMMM yyyy - hh:mm a', 'ar').format(widget.article.createdAt),
                                 style: TextStyle(
                                   color: isDark ? const Color(0xFFD1D5DB) : const Color(0xFF4B5563),
                                   fontSize: 11,
@@ -181,7 +194,7 @@ class ArticleDetailsPage extends StatelessWidget {
 
                     // Headline - No Trimming, Full text allowed to wrap
                     Text(
-                      article.excerpt, 
+                      widget.article.excerpt, 
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
@@ -234,7 +247,7 @@ class ArticleDetailsPage extends StatelessWidget {
                         if (!snapshot.hasData) return const SizedBox.shrink();
                         
                         final moreNews = snapshot.data!
-                            .where((a) => a.id != article.id)
+                            .where((a) => a.id != widget.article.id)
                             .toList();
 
                         return Column(

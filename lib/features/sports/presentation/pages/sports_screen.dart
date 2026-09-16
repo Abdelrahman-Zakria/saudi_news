@@ -4,6 +4,7 @@ import '../cubit/sports_cubit.dart';
 import '../cubit/sports_state.dart';
 import 'package:saudi_news/features/news/presentation/widgets/small_news_card.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/services/ad_service.dart';
 
 class SportsScreen extends StatefulWidget {
   const SportsScreen({super.key});
@@ -91,7 +92,13 @@ class _SportsScreenState extends State<SportsScreen> {
   Widget _buildToggleItem(BuildContext context, int index, String label, bool isSelected) {
     return Expanded(
       child: GestureDetector(
-        onTap: () => context.read<SportsCubit>().changeTab(index),
+        onTap: () {
+          context.read<SportsCubit>().changeTab(index);
+          // Show interstitial when changing tabs
+          if (!isSelected) {
+            AdService().showInterstitialAd();
+          }
+        },
         child: Container(
           decoration: BoxDecoration(
             color: isSelected ? const Color(0xFF006C35) : Colors.transparent,

@@ -27,10 +27,13 @@ class AdIds {
 }
 
 class AdService with WidgetsBindingObserver {
+  static final AdService _instance = AdService._internal();
+  factory AdService() => _instance;
+  AdService._internal();
+
   AppOpenAd? _appOpenAd;
   InterstitialAd? _interstitialAd;
   Timer? _appOpenTimer;
-  Timer? _interstitialTimer;
   bool _isShowingFullScreenAd = false;
   bool _initialized = false;
   bool _hasShownInitialAppOpen = false;
@@ -40,7 +43,6 @@ class AdService with WidgetsBindingObserver {
   Future<void> initialize() async {
     if (_initialized) return;
     
-    // Check if user is PRO (Removed Ads)
     if (IAPService().isPro) return;
 
     _initialized = true;
@@ -49,18 +51,12 @@ class AdService with WidgetsBindingObserver {
     _loadAppOpenAd();
     _loadInterstitialAd();
 
-    // App Open on launch, then once every minute.
-    _appOpenTimer = Timer.periodic(const Duration(minutes: 1), (_) {
-      _showAppOpenAd();
+    // App Open every 6 minutes
+    _appOpenTimer = Timer.periodic(const Duration(minutes: 4), (_) {
+      _showAppOpenAdInternal();
       _loadAppOpenAd();
     });
-    // Interstitial once every 30 seconds.
-    _interstitialTimer = Timer.periodic(const Duration(seconds: 150), (_) {
-      _showInterstitialAd();
-      _loadInterstitialAd();
-    });
 
-    // Listen for PRO status changes to stop ads immediately
     IAPService().proStatusStream.listen((isPro) {
       if (isPro) dispose();
     });
@@ -76,9 +72,8 @@ class AdService with WidgetsBindingObserver {
         onAdLoaded: (ad) {
           _appOpenAd = ad;
           if (!_hasShownInitialAppOpen) {
-            // Wait until the first Flutter frame is visible before presenting.
-            Future<void>.delayed(const Duration(milliseconds: 800), () {
-              if (_isAppInForeground) _showAppOpenAd();
+            Future<void>.delayed(const Duration(milliseconds: 1500), () {
+              if (_isAppInForeground) _showAppOpenAdInternal();
             });
           }
         },
@@ -100,9 +95,8 @@ class AdService with WidgetsBindingObserver {
     );
   }
 
-  void _showAppOpenAd() {
-    if (IAPService().isPro) return;
-    if (_isShowingFullScreenAd || _appOpenAd == null) return;
+  void _showAppOpenAdInternal() {
+    if (IAPService().isPro || _isShowingFullScreenAd || _appOpenAd == null) return;
     final ad = _appOpenAd!;
     _appOpenAd = null;
     _hasShownInitialAppOpen = true;
@@ -123,9 +117,9 @@ class AdService with WidgetsBindingObserver {
     ad.show();
   }
 
-  void _showInterstitialAd() {
-    if (IAPService().isPro) return;
-    if (_isShowingFullScreenAd || _interstitialAd == null) return;
+  /// Manually show an interstitial ad
+  void showInterstitialAd() {
+    if (IAPService().isPro || _isShowingFullScreenAd || _interstitialAd == null) return;
     final ad = _interstitialAd!;
     _interstitialAd = null;
     _isShowingFullScreenAd = true;
@@ -153,9 +147,9 @@ class AdService with WidgetsBindingObserver {
       if (!_hasShownInitialAppOpen ||
           _lastAppOpenShownAt == null ||
           DateTime.now().difference(_lastAppOpenShownAt!) >=
-              const Duration(minutes: 1)) {
+              const Duration(minutes: 6)) {
         Future<void>.delayed(const Duration(milliseconds: 500), () {
-          if (_isAppInForeground) _showAppOpenAd();
+          if (_isAppInForeground) _showAppOpenAdInternal();
         });
       }
     }
@@ -164,11 +158,11 @@ class AdService with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _appOpenTimer?.cancel();
-    _interstitialTimer?.cancel();
     _appOpenAd?.dispose();
     _interstitialAd?.dispose();
     _appOpenAd = null;
     _interstitialAd = null;
+    _initialized = false;
   }
 }
 

@@ -7,14 +7,27 @@ import '../../../../core/widgets/app_video_player.dart';
 import '../../../../core/widgets/app_article_image.dart';
 import '../../data/repositories/job_repository_impl.dart';
 import '../widgets/job_card.dart';
+import '../../../../core/services/ad_service.dart';
 
-class JobDetailsScreen extends StatelessWidget {
+class JobDetailsScreen extends StatefulWidget {
   final Job job;
 
   const JobDetailsScreen({super.key, required this.job});
 
+  @override
+  State<JobDetailsScreen> createState() => _JobDetailsScreenState();
+}
+
+class _JobDetailsScreenState extends State<JobDetailsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Show ad when job details is opened
+    AdService().showInterstitialAd();
+  }
+
   void _shareJob(BuildContext context) {
-    final String text = "${job.title}\n\n${job.description}\n\n"
+    final String text = "${widget.job.title}\n\n${widget.job.description}\n\n"
         "تابع المزيد من الوظائف عبر تطبيق أخبار السعودية:\n"
         "${Platform.isAndroid ? 'https://play.google.com/store/apps/details?id=com.saudi.news' : 'https://apps.apple.com/app/id123456789'}";
     
@@ -35,7 +48,7 @@ class JobDetailsScreen extends StatelessWidget {
           physics: const BouncingScrollPhysics(),
           slivers: [
             SliverAppBar(
-              expandedHeight: job.videoUrl != null ? 350 : 500, 
+              expandedHeight: widget.job.videoUrl != null ? 350 : 500, 
               pinned: true,
               stretch: true,
               backgroundColor: isDark ? const Color(0xFF0D1117) : saudiGreen,
@@ -67,29 +80,29 @@ class JobDetailsScreen extends StatelessWidget {
                 background: Stack(
                   fit: StackFit.expand,
                   children: [
-                    if (job.videoUrl != null)
+                    if (widget.job.videoUrl != null)
                       AppVideoPlayer(
-                        key: ValueKey(job.videoUrl),
-                        videoUrl: job.videoUrl!,
-                        thumbnailUrl: job.logo,
+                        key: ValueKey(widget.job.videoUrl),
+                        videoUrl: widget.job.videoUrl!,
+                        thumbnailUrl: widget.job.logo,
                       )
-                    else if (job.mediaUrls.isNotEmpty)
+                    else if (widget.job.mediaUrls.isNotEmpty)
                       Hero(
-                        tag: 'job_${job.id}',
+                        tag: 'job_${widget.job.id}',
                         child: AppArticleImage(
-                          imageUrl: job.mediaUrls.first,
+                          imageUrl: widget.job.mediaUrls.first,
                           fit: BoxFit.contain, 
                         ),
                       )
                     else
                       Hero(
-                        tag: 'job_${job.id}',
+                        tag: 'job_${widget.job.id}',
                         child: Center(
                           child: Icon(Icons.business, size: 100, color: Colors.white.withOpacity(0.5)),
                         ),
                       ),
                     
-                    if (job.videoUrl == null)
+                    if (widget.job.videoUrl == null)
                       const IgnorePointer(
                         child: DecoratedBox(
                           decoration: BoxDecoration(
@@ -124,7 +137,7 @@ class JobDetailsScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            job.category,
+                            widget.job.category,
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
@@ -147,7 +160,7 @@ class JobDetailsScreen extends StatelessWidget {
                               const Icon(Icons.access_time, size: 14, color: Color(0xFF9CA3AF)),
                               const SizedBox(width: 6),
                               Text(
-                                intl.DateFormat('d MMMM yyyy - hh:mm a', 'ar').format(job.createdAt),
+                                intl.DateFormat('d MMMM yyyy - hh:mm a', 'ar').format(widget.job.createdAt),
                                 style: TextStyle(
                                   color: isDark ? const Color(0xFFD1D5DB) : const Color(0xFF4B5563),
                                   fontSize: 11,
@@ -162,7 +175,7 @@ class JobDetailsScreen extends StatelessWidget {
                     const SizedBox(height: 24),
 
                     Text(
-                      job.title, 
+                      widget.job.title, 
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
@@ -175,7 +188,7 @@ class JobDetailsScreen extends StatelessWidget {
 
                     // Description text (Replaces specific rows)
                     Text(
-                      job.description,
+                      widget.job.description,
                       style: TextStyle(
                         fontSize: 16,
                         color: isDark ? Colors.grey[300] : Colors.black87,
@@ -213,7 +226,7 @@ class JobDetailsScreen extends StatelessWidget {
                         if (!snapshot.hasData) return const SizedBox.shrink();
                         
                         final moreJobs = snapshot.data!
-                            .where((j) => j.id != job.id)
+                            .where((j) => j.id != widget.job.id)
                             .toList();
 
                         return Column(

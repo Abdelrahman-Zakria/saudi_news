@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart' as intl;
 import '../cubit/notifications_cubit.dart';
 import '../../../../core/services/notification_service.dart';
+import '../../../../core/services/ad_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
   static bool isVisible = false;
@@ -18,6 +19,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     super.initState();
     NotificationsScreen.isVisible = true;
     context.read<NotificationsCubit>().loadHistory();
+    // Show interstitial when notifications screen is opened
+    AdService().showInterstitialAd();
   }
 
   @override

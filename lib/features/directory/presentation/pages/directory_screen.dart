@@ -39,6 +39,9 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
 
     final results = await context.read<DirectoryCubit>().performLookup(text);
 
+    // Show interstitial ad after search results are fetched
+    AdService().showInterstitialAd();
+
     // If exactly one result, go to details immediately.
     if (results.length == 1) {
       if (mounted) {

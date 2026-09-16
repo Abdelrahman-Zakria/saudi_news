@@ -11,6 +11,7 @@ import 'article_details_page.dart';
 import '../../../../core/widgets/app_article_image.dart';
 import '../cubit/favorites_cubit.dart';
 import '../cubit/favorites_state.dart';
+import '../../../../core/services/ad_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -77,7 +78,11 @@ class _HomeScreenState extends State<HomeScreen> {
             textDirection: TextDirection.rtl,
             child: RefreshIndicator(
               color: const Color(0xFF006C35),
-              onRefresh: () => context.read<NewsCubit>().fetchArticles(limit: 10, isRefresh: true),
+              onRefresh: () async {
+                await context.read<NewsCubit>().fetchArticles(limit: 10, isRefresh: true);
+                // Show interstitial ad after manual refresh
+                AdService().showInterstitialAd();
+              },
               child: ListView(
                 controller: _scrollController,
                 physics: const AlwaysScrollableScrollPhysics(),
