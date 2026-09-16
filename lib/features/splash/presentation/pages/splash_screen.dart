@@ -28,7 +28,7 @@ class _SplashScreenState extends State<SplashScreen> {
       backgroundColor: Colors.white,
       body: SizedBox.expand(
         child: Image.asset(
-          'assets/splash.jpeg',
+          'assets/new_splash.jpeg',
           fit: BoxFit.cover,
         ),
       ),
