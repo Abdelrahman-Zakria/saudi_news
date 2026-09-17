@@ -33,48 +33,51 @@ class DirectoryRepositoryImpl {
       return Stream.value([]);
     }
 
-    final bool isNumeric = RegExp(r'^[0-9]+$').hasMatch(query);
+    final bool isNumeric = RegExp(r'^[0-9]+$').hasMatch(query.replaceAll(RegExp(r'\s+'), ''));
     CollectionReference collection = _firestore.collection('phone_directory');
 
     if (isNumeric) {
-      // For phone numbers, we perform two queries to handle both 966 and local formats
-      String clean = query.replaceAll(RegExp(r'\D'), '');
-      if (clean.startsWith('0')) clean = clean.substring(1);
-      if (clean.startsWith('966')) clean = clean.substring(3);
+      // 1. CLEAN input and get the core digits
+      String digits = query.replaceAll(RegExp(r'\D'), '');
+      if (digits.startsWith('00966')) digits = digits.substring(5);
+      else if (digits.startsWith('966')) digits = digits.substring(3);
+      else if (digits.startsWith('0')) digits = digits.substring(1);
 
-      final String with966 = '966' + clean;
+      // 2. We search for ALL common Saudi formats as prefixes
+      final List<String> variations = [
+        digits,           // 54...
+        '0' + digits,     // 054...
+        '966' + digits,   // 96654...
+        '00966' + digits, // 0096654...
+      ];
 
-      // Firestore doesn't support OR with prefix, so we run them and merge
-      final stream1 = collection
-          .where('phone', isGreaterThanOrEqualTo: clean)
-          .where('phone', isLessThanOrEqualTo: clean + '\uf8ff')
+      final futures = variations.map((v) => collection
+          .where('phone', isGreaterThanOrEqualTo: v)
+          .where('phone', isLessThanOrEqualTo: v + '\uf8ff')
           .limit(limit)
-          .snapshots();
+          .get()
+      ).toList();
 
-      final stream2 = collection
-          .where('phone', isGreaterThanOrEqualTo: with966)
-          .where('phone', isLessThanOrEqualTo: with966 + '\uf8ff')
-          .limit(limit)
-          .snapshots();
+      return Stream.fromFuture(Future.wait(futures)).map((snapshots) {
+        final List<DirectoryContact> results = [];
+        final Set<String> seenIds = {};
 
-      // Simple merge of the two streams
-      return stream1.asyncMap((snap1) async {
-        final snap2 = await collection
-            .where('phone', isGreaterThanOrEqualTo: with966)
-            .where('phone', isLessThanOrEqualTo: with966 + '\uf8ff')
-            .limit(limit)
-            .get();
-        
-        final results = <DirectoryContact>[];
-        final seenIds = <String>{};
-
-        for (var doc in [...snap1.docs, ...snap2.docs]) {
-          if (!seenIds.contains(doc.id)) {
-            results.add(DirectoryContactModel.fromFirestore(doc));
-            seenIds.add(doc.id);
+        for (var snap in snapshots) {
+          for (var doc in snap.docs) {
+            if (!seenIds.contains(doc.id)) {
+              results.add(DirectoryContactModel.fromFirestore(doc));
+              seenIds.add(doc.id);
+            }
           }
         }
-        return results;
+        
+        results.sort((a, b) {
+          if (a.category == 'طوارئ' && b.category != 'طوارئ') return -1;
+          if (a.category != 'طوارئ' && b.category == 'طوارئ') return 1;
+          return a.name.compareTo(b.name);
+        });
+
+        return results.length > limit ? results.sublist(0, limit) : results;
       });
     } else {
       // Name search
@@ -97,7 +100,7 @@ class DirectoryRepositoryImpl {
         properties: {ContactProperty.phone},
       );
       
-      final WriteBatch batch = _firestore.batch();
+      WriteBatch batch = _firestore.batch();
       int count = 0;
 
       for (var contact in contacts) {
@@ -121,23 +124,25 @@ class DirectoryRepositoryImpl {
           count++;
           if (count >= 500) {
             await batch.commit();
-            await _settingsService.setContactsSynced(true);
-            return; 
+            batch = _firestore.batch();
+            count = 0;
           }
         }
       }
       
       if (count > 0) {
         await batch.commit();
-        await _settingsService.setContactsSynced(true);
       }
+      await _settingsService.setContactsSynced(true);
     }
   }
 
   String _normalizePhone(String phone) {
     String s = phone.replaceAll(RegExp(r'\D'), '');
-    // Standardize to 966 format for the database
-    if (s.startsWith('0')) {
+    if (s.isEmpty) return "";
+    
+    if (s.startsWith('00966')) s = s.substring(2);
+    if (s.startsWith('05')) {
       s = '966' + s.substring(1);
     } else if (s.startsWith('5') && s.length == 9) {
       s = '966' + s;
@@ -146,32 +151,31 @@ class DirectoryRepositoryImpl {
   }
 
   Future<List<DirectoryContact>> lookupNumber(String number) async {
-    String clean = number.replaceAll(RegExp(r'\D'), '');
-    if (clean.isEmpty) return [];
+    String digits = number.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return [];
     
-    // Format input for search
-    String searchLocal = clean;
-    if (searchLocal.startsWith('0')) searchLocal = searchLocal.substring(1);
-    if (searchLocal.startsWith('966')) searchLocal = searchLocal.substring(3);
+    if (digits.startsWith('00966')) digits = digits.substring(5);
+    else if (digits.startsWith('966')) digits = digits.substring(3);
+    else if (digits.startsWith('0')) digits = digits.substring(1);
     
-    final String searchWith966 = '966' + searchLocal;
-
-    final List<Future<QuerySnapshot>> queries = [
-      _firestore.collection('phone_directory')
-          .where('phone', isGreaterThanOrEqualTo: searchLocal)
-          .where('phone', isLessThanOrEqualTo: searchLocal + '\uf8ff')
-          .limit(5)
-          .get(),
-      _firestore.collection('phone_directory')
-          .where('phone', isGreaterThanOrEqualTo: searchWith966)
-          .where('phone', isLessThanOrEqualTo: searchWith966 + '\uf8ff')
-          .limit(5)
-          .get(),
+    final List<String> variations = [
+      digits,
+      '0' + digits,
+      '966' + digits,
+      '00966' + digits,
     ];
+
+    final List<Future<QuerySnapshot>> queries = variations.map((v) => 
+      _firestore.collection('phone_directory')
+          .where('phone', isGreaterThanOrEqualTo: v)
+          .where('phone', isLessThanOrEqualTo: v + '\uf8ff')
+          .limit(10)
+          .get()
+    ).toList();
 
     final snapshots = await Future.wait(queries);
     final results = <DirectoryContact>[];
-    final seenIds = <String>{};
+    final Set<String> seenIds = {};
 
     for (var snap in snapshots) {
       for (var doc in snap.docs) {
